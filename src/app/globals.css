@@ -1,0 +1,14 @@
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
+
+@layer base {
+  :root {
+    --background: #05070A;
+    --foreground: #FFFFFF;
+  }
+}
+
+body {
+  @apply bg-background text-text font-sans antialiased;
+}
+
