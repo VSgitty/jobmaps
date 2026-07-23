@@ -2,11 +2,46 @@
 
 import { JobMap } from '@/maps/job-map';
 import { Header } from '@/components/layout/header';
-import { Search, MapPin, Clock, Target, Eye } from 'lucide-react';
+import { Search, MapPin, Clock, Target, Eye, Navigation } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
+  const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isGoLocating, setIsGoLocating] = useState(false);
+
+  const handleSearch = (queryStr?: string) => {
+    const q = queryStr !== undefined ? queryStr : searchQuery;
+    if (q.trim()) {
+      router.push(`/map?q=${encodeURIComponent(q.trim())}`);
+    } else {
+      router.push('/map');
+    }
+  };
+
+  const handleGoLocate = () => {
+    setIsGoLocating(true);
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          router.push(`/map?lat=${latitude}&lon=${longitude}&located=true`);
+        },
+        (error) => {
+          console.warn("Geolocation error on homepage:", error);
+          setIsGoLocating(false);
+          router.push('/map?locate=true');
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    } else {
+      setIsGoLocating(false);
+      router.push('/map?locate=true');
+    }
+  };
+
   return (
     <main className="flex h-screen w-full bg-background overflow-hidden relative font-sans">
       <Header />
@@ -26,21 +61,48 @@ export default function Home() {
           Entdecke Arbeitgeber in deiner Umgebung, vergleiche Pendelzeiten und finde den Job, der wirklich zu deinem Alltag passt.
         </p>
 
-        {/* Search Box */}
-        <div className="bg-white rounded-full p-2 flex items-center shadow-lg max-w-2xl w-full mb-6">
-          <div className="flex-1 flex items-center px-4">
-            <Search className="w-5 h-5 text-gray-400 mr-3" />
-            <input 
-              type="text" 
-              placeholder="Job, Firma oder Standort" 
-              className="w-full bg-transparent border-none outline-none text-gray-900 placeholder:text-gray-500 font-medium"
-            />
-          </div>
-          <Link href="/map" className="contents">
-            <Button className="bg-primary hover:bg-primary/90 text-white rounded-full px-8 py-3 h-auto text-base font-semibold">
+        {/* Search Box & GO Button */}
+        <div className="flex flex-col sm:flex-row items-center gap-3 max-w-2xl w-full mb-6">
+          <form 
+            onSubmit={(e) => { e.preventDefault(); handleSearch(); }}
+            className="bg-white rounded-full p-2 flex items-center shadow-xl flex-1 w-full"
+          >
+            <div className="flex-1 flex items-center px-4">
+              <Search className="w-5 h-5 text-gray-400 mr-3 shrink-0" />
+              <input 
+                type="text" 
+                placeholder="Ort, Beruf oder Firma (z.B. Köln, Pflege...)" 
+                className="w-full bg-transparent border-none outline-none text-gray-900 placeholder:text-gray-500 font-medium text-sm sm:text-base"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <Button 
+              type="submit"
+              className="bg-primary hover:bg-primary/90 text-white rounded-full px-6 py-3 h-auto text-sm sm:text-base font-semibold shrink-0"
+            >
               Suchen
             </Button>
-          </Link>
+          </form>
+
+          {/* GO Instant Doorstep Button */}
+          <Button 
+            type="button"
+            onClick={handleGoLocate}
+            disabled={isGoLocating}
+            className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-full px-5 py-3.5 h-auto text-sm font-extrabold flex items-center gap-2 shadow-2xl shrink-0 transition-transform active:scale-95 cursor-pointer ring-2 ring-emerald-400/30"
+            title="Sofort Standort bestimmen und Jobs direkt vor deiner Haustür anzeigen"
+          >
+            {isGoLocating ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <>
+                <span className="bg-white text-emerald-700 rounded-full w-6 h-6 flex items-center justify-center font-black text-xs shadow-sm">GO</span>
+                <Navigation className="w-4 h-4 text-white fill-white" />
+                <span className="whitespace-nowrap">Vor der Haustür</span>
+              </>
+            )}
+          </Button>
         </div>
 
         {/* Popular Tags */}
@@ -48,7 +110,11 @@ export default function Home() {
           <span>Beliebt:</span>
           <div className="flex gap-2">
             {['Pflege', 'Ingenieur', 'Vertrieb', 'IT', 'Mechatroniker'].map((tag) => (
-              <span key={tag} className="px-3 py-1 rounded-full border border-white/10 hover:bg-white/10 cursor-pointer transition-colors">
+              <span 
+                key={tag} 
+                onClick={() => handleSearch(tag)}
+                className="px-3 py-1 rounded-full border border-white/10 hover:bg-white/10 cursor-pointer transition-colors"
+              >
                 {tag}
               </span>
             ))}
