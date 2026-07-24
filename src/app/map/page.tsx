@@ -571,9 +571,23 @@ function MapViewContent() {
                 )}
                 
                 {!loadingJobs && jobs.length === 0 && (
-                  <div className="text-center py-12 text-secondary text-sm bg-surface/50 rounded-xl p-6 border border-border">
-                    <p className="font-semibold text-text mb-1">Keine Stellenangebote gefunden</p>
-                    <p className="text-xs">Versuche den Suchbegriff oder den Radius zu vergrößern.</p>
+                  <div className="text-center py-8 px-5 bg-blue-950/40 rounded-2xl border border-blue-500/30 space-y-3 animate-in fade-in">
+                    <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 mx-auto">
+                      <Navigation className="w-5 h-5 animate-pulse" />
+                    </div>
+                    <div>
+                      <p className="font-extrabold text-white text-sm">Keine Treffer für diese enge Filterkombination</p>
+                      <p className="text-xs text-slate-400 mt-1">Setze die Filter zurück oder suche im weiteren Umkreis, um sofort hunderte aktive Stellen in deiner Region zu sehen.</p>
+                    </div>
+                    <Button 
+                      onClick={() => {
+                        handleResetFilters();
+                        setDistance(50);
+                      }}
+                      className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-lg shadow-blue-600/30 cursor-pointer"
+                    >
+                      🔄 Region-Suche laden & Filter zurücksetzen
+                    </Button>
                   </div>
                 )}
 

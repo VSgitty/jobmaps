@@ -217,11 +217,6 @@ export async function GET(request: Request) {
         const [jobLat, jobLon] = resolveJobCoordinates(item, lat, lon, idx);
 
         const exactDist = calculateDistanceKm(lat, lon, jobLat, jobLon);
-        // Filter out jobs outside requested radius (+ 15% margin)
-        if (!isNationwide && exactDist > radius * 1.15) {
-          continue;
-        }
-
         const distKm = Math.round(exactDist * 100) / 100;
         const distText = exactDist < 1 ? `${Math.max(10, Math.round(exactDist * 1000))} m` : `${(Math.round(exactDist * 10) / 10).toFixed(1)} km`;
 
@@ -313,9 +308,20 @@ export async function GET(request: Request) {
       // Deduplicate jobs from multiple sources
       let mergedJobs = deduplicateAndMergeJobs(processedJobs);
 
-      // Filter by jobType if specified
+      // Adaptive Radius Filter: If narrow radius has < 12 jobs, include nearby regional jobs
+      if (!isNationwide) {
+        const insideRadius = mergedJobs.filter(j => (j.exact_distance || 0) <= radius * 1.2);
+        if (insideRadius.length >= 10) {
+          mergedJobs = insideRadius;
+        }
+      }
+
+      // Filter by jobType if specified (only if filter yields results)
       if (jobType && jobType !== 'Alle') {
-        mergedJobs = mergedJobs.filter(j => (j.type || '').toLowerCase().includes(jobType.toLowerCase()));
+        const typeMatches = mergedJobs.filter(j => (j.type || '').toLowerCase().includes(jobType.toLowerCase()));
+        if (typeMatches.length > 0) {
+          mergedJobs = typeMatches;
+        }
       }
 
       // Sort strictly by exact distance ascending (nearest jobs first)

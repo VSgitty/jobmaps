@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import Map, { NavigationControl, Marker, ViewState, Source, Layer, MapRef } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { Layers, User, Car, Bike, Bus, Navigation } from "lucide-react";
@@ -306,6 +306,39 @@ export function JobMap({
     { mode: 'walking', name: 'Allianz AG', icon: Navigation, color: '#10b981', target: [8.6920, 50.1150] as [number, number], label: '35 Min • Zu Fuß (1,9 km)' },
   ], []);
 
+  // Debounced auto-fetch on map drag / pan / zoom
+  const mapMoveTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleMapMove = useCallback((evt: any) => {
+    setCurrentZoom(evt.viewState.zoom);
+    if (evt.target && typeof evt.target.getBounds === 'function') {
+      try {
+        const bounds = evt.target.getBounds();
+        if (bounds) {
+          const boundsArray = bounds.toArray().flat() as [number, number, number, number];
+          setBounds(boundsArray);
+        }
+      } catch (e) {
+        console.warn("Could not get bounds:", e);
+      }
+    }
+
+    // Auto-search new viewport area when user pans/scrolls map
+    if (interactive && onSearchThisArea && mapRef.current) {
+      if (mapMoveTimerRef.current) clearTimeout(mapMoveTimerRef.current);
+      mapMoveTimerRef.current = setTimeout(() => {
+        try {
+          const center = mapRef.current?.getCenter();
+          if (center) {
+            onSearchThisArea(center.lat, center.lng);
+          }
+        } catch (e) {
+          console.warn("Auto map move fetch warning:", e);
+        }
+      }, 650);
+    }
+  }, [interactive, onSearchThisArea]);
+
   return (
     <div className="w-full h-full relative overflow-hidden bg-background">
       <Map
@@ -316,20 +349,7 @@ export function JobMap({
             onSelectJob(null);
           }
         }}
-        onMove={(evt) => {
-          setCurrentZoom(evt.viewState.zoom);
-          if (evt.target && typeof evt.target.getBounds === 'function') {
-            try {
-              const bounds = evt.target.getBounds();
-              if (bounds) {
-                const boundsArray = bounds.toArray().flat() as [number, number, number, number];
-                setBounds(boundsArray);
-              }
-            } catch (e) {
-              console.warn("Could not get bounds:", e);
-            }
-          }
-        }}
+        onMove={handleMapMove}
         mapStyle={MAP_STYLES[mapStyleKey]}
         mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
         style={{ width: "100%", height: "100%" }}
