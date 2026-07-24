@@ -118,15 +118,30 @@ export function JobMap({
   const [currentZoom, setCurrentZoom] = useState(initialViewState?.zoom || 11);
   const [bounds, setBounds] = useState<[number, number, number, number]>([-180, -85, 180, 85]);
 
-  // Default initial configuration
+  // Default initial configuration with 'Hello feeling' zoom start
   const mapInitialViewState = useMemo(() => ({
     longitude: 8.6821,
     latitude: 50.1109,
-    zoom: 10,
+    zoom: showDemoShowcase ? 7.5 : 10,
     pitch: 0,
     bearing: 0,
     ...initialViewState
-  }), []);
+  }), [showDemoShowcase, initialViewState]);
+
+  // "Hello feeling" Camera Zoom Animation on Homepage Load
+  useEffect(() => {
+    if (showDemoShowcase && mapRef.current) {
+      const timer = setTimeout(() => {
+        mapRef.current?.flyTo({
+          center: [8.6821, 50.1109],
+          zoom: 11,
+          pitch: 15,
+          duration: 2200
+        });
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+  }, [showDemoShowcase]);
 
   // Track the last user location we flew to, to avoid flying back on every hover/re-render
   const lastFlewToLoc = useRef<string>("");
@@ -905,77 +920,94 @@ export function JobMap({
           );
         })}
 
-        {/* Seamless Attached Multi-Job / Multi-Company Location Card Popup (Punkt 4, 5, 6 & 7) */}
+        {/* Floating Multi-Job / Multi-Company Location Card Overlay (Keine Überlappung mit Marker-Pin!) */}
         {activeLocationPopup && (
-          <Marker longitude={activeLocationPopup.lng} latitude={activeLocationPopup.lat}>
-            <div className="relative bottom-full left-1/2 -translate-x-1/2 mb-4 bg-slate-900/95 backdrop-blur-2xl border-2 border-blue-500/80 rounded-3xl p-4 shadow-2xl z-[300] w-80 max-h-96 overflow-y-auto animate-in fade-in zoom-in-95 space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span className="text-xs font-black text-white flex items-center gap-1.5">
-                  <span className="text-blue-400">📍</span>
-                  <span>{activeLocationPopup.jobs.length} Stellen an diesem Ort</span>
-                </span>
-                <button
-                  onClick={() => setActiveLocationPopup(null)}
-                  className="text-slate-400 hover:text-white p-1 text-xs font-bold cursor-pointer"
-                >
-                  ✕
-                </button>
+          <div className="absolute top-16 right-4 sm:top-20 sm:right-6 z-[250] w-80 sm:w-96 max-h-[75vh] bg-slate-900/95 backdrop-blur-2xl border-2 border-blue-500/80 rounded-3xl p-4 shadow-2xl overflow-y-auto animate-in fade-in slide-in-from-right-4 space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-sm">
+                  📍
+                </div>
+                <div>
+                  <h3 className="text-xs sm:text-sm font-black text-white leading-tight">
+                    {activeLocationPopup.jobs.filter(j => calculateJobAge(j.published_date, j.published_days_old).daysOld <= 40).length} Stellen an diesem Standort
+                  </h3>
+                  <p className="text-[10px] text-slate-400">Übersicht aller Arbeitgeber & offenen Jobs</p>
+                </div>
               </div>
 
-              {/* Group jobs by company name */}
-              {(() => {
-                const groupedMap = new Map<string, { companyName: string; style: CompanyStyle; jobs: Job[] }>();
-                for (const j of activeLocationPopup.jobs) {
-                  const style = getCompanyStyle(j.company_name);
-                  if (groupedMap.has(style.name)) {
-                    groupedMap.get(style.name)!.jobs.push(j);
-                  } else {
-                    groupedMap.set(style.name, { companyName: j.company_name, style, jobs: [j] });
-                  }
-                }
-                const groups = Array.from(groupedMap.values());
+              <button
+                onClick={() => setActiveLocationPopup(null)}
+                className="text-slate-400 hover:text-white p-1 text-sm font-bold cursor-pointer rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors"
+                title="Schließen"
+              >
+                ✕
+              </button>
+            </div>
 
+            {/* Group jobs by company name (Excluding jobs > 40 days old) */}
+            {(() => {
+              const freshJobs = activeLocationPopup.jobs.filter(j => calculateJobAge(j.published_date, j.published_days_old).daysOld <= 40);
+              
+              if (freshJobs.length === 0) {
                 return (
-                  <div className="space-y-3">
-                    {groups.map((grp, gIdx) => (
-                      <div key={gIdx} className="bg-slate-950/80 rounded-2xl p-3 border border-slate-800 space-y-2" style={{ borderLeftColor: grp.style.hexColor, borderLeftWidth: '4px' }}>
-                        <div className="flex items-center justify-between text-xs font-extrabold text-white">
-                          <span className="truncate">{grp.companyName}</span>
-                          <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded-full text-slate-300 font-bold">
-                            {grp.jobs.length} {grp.jobs.length === 1 ? 'Stelle' : 'Stellen'}
-                          </span>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          {grp.jobs.map((jobItem) => {
-                            const ageInfo = calculateJobAge(jobItem.published_date, jobItem.published_days_old);
-                            return (
-                              <div
-                                key={jobItem.id}
-                                onClick={() => {
-                                  setActiveLocationPopup(null);
-                                  if (onSelectJob) onSelectJob(jobItem);
-                                }}
-                                className="bg-slate-900/90 hover:bg-blue-950/60 p-2 rounded-xl border border-slate-800 hover:border-blue-500/50 cursor-pointer transition-all flex items-center justify-between text-xs text-slate-200 group"
-                              >
-                                <div className="truncate max-w-[180px] font-semibold group-hover:text-blue-300">
-                                  {jobItem.title}
-                                </div>
-                                <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border flex items-center gap-1 shrink-0 ${ageInfo.badgeBg} ${ageInfo.badgeBorder} ${ageInfo.badgeText}`}>
-                                  <span className={`w-1.5 h-1.5 rounded-full ${ageInfo.dotColor}`} />
-                                  <span>{ageInfo.label}</span>
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
+                  <div className="p-4 text-center text-xs text-slate-400">
+                    Keine aktuellen Stellen unter 40 Tagen an diesem Standort.
                   </div>
                 );
-              })()}
-            </div>
-          </Marker>
+              }
+
+              const groupedMap = new Map<string, { companyName: string; style: CompanyStyle; jobs: Job[] }>();
+              for (const j of freshJobs) {
+                const style = getCompanyStyle(j.company_name);
+                if (groupedMap.has(style.name)) {
+                  groupedMap.get(style.name)!.jobs.push(j);
+                } else {
+                  groupedMap.set(style.name, { companyName: j.company_name, style, jobs: [j] });
+                }
+              }
+              const groups = Array.from(groupedMap.values());
+
+              return (
+                <div className="space-y-3">
+                  {groups.map((grp, gIdx) => (
+                    <div key={gIdx} className="bg-slate-950/80 rounded-2xl p-3 border border-slate-800 space-y-2 shadow-sm" style={{ borderLeftColor: grp.style.hexColor, borderLeftWidth: '4px' }}>
+                      <div className="flex items-center justify-between text-xs font-extrabold text-white">
+                        <span className="truncate max-w-[200px]" style={{ color: grp.style.hexColor }}>{grp.companyName}</span>
+                        <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded-full text-slate-300 font-bold border border-slate-700/80">
+                          {grp.jobs.length} {grp.jobs.length === 1 ? 'Stelle' : 'Stellen'}
+                        </span>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        {grp.jobs.map((jobItem) => {
+                          const ageInfo = calculateJobAge(jobItem.published_date, jobItem.published_days_old);
+                          return (
+                            <div
+                              key={jobItem.id}
+                              onClick={() => {
+                                setActiveLocationPopup(null);
+                                if (onSelectJob) onSelectJob(jobItem);
+                              }}
+                              className="bg-slate-900/90 hover:bg-blue-950/60 p-2.5 rounded-xl border border-slate-800 hover:border-blue-500/50 cursor-pointer transition-all flex items-center justify-between text-xs text-slate-200 group shadow-xs"
+                            >
+                              <div className="truncate max-w-[190px] font-semibold group-hover:text-blue-300">
+                                {jobItem.title}
+                              </div>
+                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border flex items-center gap-1 shrink-0 ${ageInfo.badgeBg} ${ageInfo.badgeBorder} ${ageInfo.badgeText}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${ageInfo.dotColor}`} />
+                                <span>{ageInfo.label}</span>
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
         )}
 
         {/* Bottom Right Map Legend Component (Punkt 2) */}

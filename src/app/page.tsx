@@ -127,9 +127,9 @@ export default function Home() {
             </div>
             
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.12] mb-6">
-              Dein persönlicher <br />
+              Finde Arbeit, die <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-sky-300 to-indigo-300">
-                Arbeitsmarkt.
+                exakt in dein Leben passt.
               </span>
             </h1>
             

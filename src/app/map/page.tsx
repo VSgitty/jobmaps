@@ -129,6 +129,7 @@ function MapViewContent() {
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [routeMode, setRouteMode] = useState<RouteMode>('driving');
   const [viewMode, setViewMode] = useState<'jobs' | 'employers'>('jobs');
+  const [filterTypeMode, setFilterTypeMode] = useState<'radius' | 'commute'>('radius');
   const [activeMobileTab, setActiveMobileTab] = useState<'map' | 'list'>('map');
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [alertEmail, setAlertEmail] = useState('');
@@ -161,16 +162,22 @@ function MapViewContent() {
     setTimeout(() => setCopiedLink(false), 2500);
   };
 
-  // Computed filtered jobs based on Max Commute & Homeoffice
+  // Computed filtered jobs based on Radius (Standard) or Pendelzeit & Homeoffice
   const filteredJobs = useMemo(() => {
     return jobs.filter(job => {
-      // Age Filter: Exclude jobs older than 40 days
+      // Age Filter: Strictly exclude jobs older than 40 days
       const daysOld = job.published_days_old ?? calculateJobAge(job.published_date).daysOld;
       if (daysOld > 40) return false;
 
-      // Commute Filter
-      const commuteTime = job.commute_times?.[routeMode] ?? Math.round(((job.exact_distance ?? 1) / 40) * 60);
-      const passesCommute = maxCommuteMins >= 90 || commuteTime <= maxCommuteMins;
+      // Distance / Commute Filter
+      let passesLocation = true;
+      if (filterTypeMode === 'radius') {
+        const distKm = job.exact_distance ?? job.distance ?? 0;
+        passesLocation = distance >= 195 || distKm <= distance;
+      } else {
+        const commuteTime = job.commute_times?.[routeMode] ?? Math.round(((job.exact_distance ?? 1) / 40) * 60);
+        passesLocation = maxCommuteMins >= 90 || commuteTime <= maxCommuteMins;
+      }
 
       // Homeoffice Filter
       let passesHO = true;
@@ -182,9 +189,9 @@ function MapViewContent() {
         passesHO = job.homeoffice_option === 'Vor Ort';
       }
 
-      return passesCommute && passesHO;
+      return passesLocation && passesHO;
     });
-  }, [jobs, maxCommuteMins, routeMode, homeofficeFilter]);
+  }, [jobs, filterTypeMode, distance, maxCommuteMins, routeMode, homeofficeFilter]);
 
   // Grouped Employers calculation for Employer Discovery Mode
   const groupedEmployers = useMemo(() => {
@@ -691,32 +698,83 @@ function MapViewContent() {
                   </div>
 
                   <div className="space-y-2 bg-surface/60 p-3 rounded-xl border border-border/70">
-                    <div className="flex justify-between items-center text-xs font-medium">
-                      <span className="text-secondary flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-blue-400" /> Max. Pendelzeit:
-                      </span>
-                      <span className="text-blue-400 font-extrabold text-xs">
-                        {maxCommuteMins >= 90 ? 'Alle Pendelzeiten' : `≤ ${maxCommuteMins} Minuten`}
-                      </span>
-                    </div>
-                    <input 
-                      type="range" 
-                      className="w-full accent-blue-500 h-1.5 bg-surface rounded-lg cursor-pointer" 
-                      min="10" 
-                      max="90" 
-                      step="5"
-                      value={maxCommuteMins} 
-                      onChange={(e) => setMaxCommuteMins(Number(e.target.value))} 
-                    />
-                    <div className="flex justify-between text-[10px] text-slate-400 font-semibold px-0.5">
-                      <span>10m</span>
-                      <span>20m</span>
-                      <span>30m</span>
-                      <span>45m</span>
-                      <span>60m</span>
-                      <span>90m+</span>
+                    {/* Toggle Button for KM Radius vs Pendelzeit */}
+                    <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800 gap-1 text-[11px] font-bold">
+                      <button
+                        type="button"
+                        onClick={() => setFilterTypeMode('radius')}
+                        className={`flex-1 py-1 px-2 rounded-md transition-all cursor-pointer ${filterTypeMode === 'radius' ? 'bg-blue-600 text-white shadow-sm font-extrabold' : 'text-slate-400 hover:text-white'}`}
+                      >
+                        📏 KM-Radius (Standard)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFilterTypeMode('commute')}
+                        className={`flex-1 py-1 px-2 rounded-md transition-all cursor-pointer ${filterTypeMode === 'commute' ? 'bg-blue-600 text-white shadow-sm font-extrabold' : 'text-slate-400 hover:text-white'}`}
+                      >
+                        ⏱️ Pendelzeit (Min.)
+                      </button>
                     </div>
 
+                    {/* Active Filter Slider: Radius (KM) vs Pendelzeit (Min) */}
+                    {filterTypeMode === 'radius' ? (
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex justify-between items-center text-xs font-medium">
+                          <span className="text-secondary flex items-center gap-1">
+                            <MapPin className="w-3.5 h-3.5 text-blue-400" /> Radius in KM:
+                          </span>
+                          <span className="text-blue-400 font-extrabold text-xs">
+                            {distance >= 195 ? 'Deutschlandweit' : `${distance} km`}
+                          </span>
+                        </div>
+                        <input 
+                          type="range" 
+                          className="w-full accent-blue-500 h-1.5 bg-surface rounded-lg cursor-pointer" 
+                          min="5" 
+                          max="200" 
+                          step="5"
+                          value={distance} 
+                          onChange={(e) => setDistance(Number(e.target.value))} 
+                        />
+                        <div className="flex justify-between text-[10px] text-slate-400 font-semibold px-0.5">
+                          <span>5 km</span>
+                          <span>25 km</span>
+                          <span>50 km</span>
+                          <span>100 km</span>
+                          <span>200 km</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex justify-between items-center text-xs font-medium">
+                          <span className="text-secondary flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5 text-blue-400" /> Max. Pendelzeit:
+                          </span>
+                          <span className="text-blue-400 font-extrabold text-xs">
+                            {maxCommuteMins >= 90 ? 'Alle Pendelzeiten' : `≤ ${maxCommuteMins} Minuten`}
+                          </span>
+                        </div>
+                        <input 
+                          type="range" 
+                          className="w-full accent-blue-500 h-1.5 bg-surface rounded-lg cursor-pointer" 
+                          min="10" 
+                          max="90" 
+                          step="5"
+                          value={maxCommuteMins} 
+                          onChange={(e) => setMaxCommuteMins(Number(e.target.value))} 
+                        />
+                        <div className="flex justify-between text-[10px] text-slate-400 font-semibold px-0.5">
+                          <span>10m</span>
+                          <span>20m</span>
+                          <span>30m</span>
+                          <span>45m</span>
+                          <span>60m</span>
+                          <span>90m+</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Verkehrsmittel Options (Always active so commute times are calculated) */}
                     <div className="grid grid-cols-4 gap-1 pt-1">
                       {[
                         { id: 'driving', label: 'Auto', icon: Car, color: 'text-blue-400' },
@@ -729,6 +787,7 @@ function MapViewContent() {
                         return (
                           <button
                             key={mode.id}
+                            type="button"
                             onClick={() => setRouteMode(mode.id as RouteMode)}
                             className={`py-1.5 px-2 rounded-xl border text-[11px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${isActive ? 'bg-blue-600/20 border-blue-500 text-white shadow-sm' : 'bg-surface border-border text-secondary hover:border-slate-700'}`}
                           >
