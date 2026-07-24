@@ -1,7 +1,7 @@
 'use client';
 
 import { JobMap } from '@/maps/job-map';
-import { Search, MapPin, Navigation, Car, Bike, Train, ChevronLeft, ExternalLink, Briefcase, Filter, CheckCircle2, Building2, Users, Award, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { Search, MapPin, Navigation, Car, Bike, Train, ChevronLeft, ExternalLink, Briefcase, Filter, CheckCircle2, Building2, Users, Award, Sparkles, Clock, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useState, useEffect, useCallback, Suspense } from 'react';
@@ -53,6 +53,9 @@ function MapViewContent() {
   const [hoveredJobId, setHoveredJobId] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
   const [keywordQuery, setKeywordQuery] = useState('');
   const [jobType, setJobType] = useState('Alle');
   const [distance, setDistance] = useState(25);
@@ -61,7 +64,46 @@ function MapViewContent() {
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [routeMode, setRouteMode] = useState<RouteMode>('driving');
 
-  // Handle geolocation auto-detect or manual click
+  // Load search history on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('jobmaps_history');
+    if (saved) {
+      try {
+        setSearchHistory(JSON.parse(saved));
+      } catch (e) {
+        console.error("Error loading history", e);
+      }
+    }
+  }, []);
+
+  const saveToHistory = (address: string) => {
+    const newHistory = [address, ...searchHistory.filter(h => h !== address)].slice(0, 5);
+    setSearchHistory(newHistory);
+    localStorage.setItem('jobmaps_history', JSON.stringify(newHistory));
+  };
+
+  // Fetch suggestions as user types
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      if (searchQuery.length < 2) {
+        setSuggestions([]);
+        return;
+      }
+      try {
+        const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+        const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchQuery)}.json?country=DE,AT,CH&types=place,address,postcode&access_token=${token}`);
+        const data = await res.json();
+        setSuggestions(data.features || []);
+      } catch (e) {
+        console.error("Error fetching suggestions", e);
+      }
+    };
+
+    const timeoutId = setTimeout(fetchSuggestions, 300);
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+
+  // Handle Geolocation auto-detect or manual click
   const handleLocateMe = useCallback(() => {
     setIsLocating(true);
     if ('geolocation' in navigator) {
@@ -152,17 +194,52 @@ function MapViewContent() {
     }
   }, [searchParams, handleLocateMe]);
 
+  const handleSelectSuggestion = (feature: any) => {
+    const [longitude, latitude] = feature.center;
+    const address = feature.place_name;
+    setUserLocation({ latitude, longitude, address });
+    setSearchQuery(address);
+    setSuggestions([]);
+    setShowDropdown(false);
+    saveToHistory(address);
+  };
+
+  const handleSelectHistory = async (address: string) => {
+    setSearchQuery(address);
+    setShowDropdown(false);
+    setIsLocating(true);
+    try {
+      const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+      const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?country=DE,AT,CH&access_token=${token}`);
+      const data = await res.json();
+      if (data.features && data.features.length > 0) {
+        const feat = data.features[0];
+        const [longitude, latitude] = feat.center;
+        setUserLocation({ latitude, longitude, address: feat.place_name });
+        setSearchQuery(feat.place_name);
+      }
+    } catch (err) {
+      console.error("Geocoding error", err);
+    }
+    setIsLocating(false);
+  };
+
   // Handle Location Search using Mapbox Geocoder
   const handleSearch = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && searchQuery.trim()) {
       setIsLocating(true);
+      setShowDropdown(false);
       try {
         const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
         const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchQuery)}.json?country=DE,AT,CH&access_token=${token}`);
         const data = await res.json();
         if (data.features && data.features.length > 0) {
-          const [longitude, latitude] = data.features[0].center;
-          setUserLocation({ latitude, longitude, address: data.features[0].place_name });
+          const feat = data.features[0];
+          const [longitude, latitude] = feat.center;
+          const address = feat.place_name;
+          setUserLocation({ latitude, longitude, address });
+          setSearchQuery(address); // Explicitly update input with cleaned address
+          saveToHistory(address);
         } else {
           alert("Ort nicht gefunden.");
         }
@@ -223,16 +300,55 @@ function MapViewContent() {
             <span className="text-white font-bold text-lg tracking-tight">Job Maps</span>
           </Link>
           
-          <div className="flex bg-surface rounded-md p-1 border border-border items-center gap-1">
+          <div className="flex bg-surface rounded-md p-1 border border-border items-center gap-1 relative">
             <Search className="w-4 h-4 text-secondary ml-2 shrink-0" />
-            <input 
-              type="text" 
-              placeholder="Ort suchen (Enter)" 
-              className="bg-transparent border-none outline-none text-sm text-text px-2 py-1.5 w-52 placeholder:text-secondary"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={handleSearch}
-            />
+            <div className="relative flex-1">
+              <input 
+                type="text" 
+                placeholder="Ort suchen (Enter)" 
+                className="bg-transparent border-none outline-none text-sm text-text px-2 py-1.5 w-52 placeholder:text-secondary"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearch}
+                onFocus={() => setShowDropdown(true)}
+                onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+              />
+              
+              {/* Autocomplete & History Dropdown */}
+              {showDropdown && (suggestions.length > 0 || searchHistory.length > 0) && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-xl shadow-2xl z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2">
+                  {suggestions.length > 0 ? (
+                    <div className="p-2 space-y-1">
+                      <div className="text-[10px] font-bold text-secondary uppercase px-2 py-1">Vorschläge</div>
+                      {suggestions.map((feat) => (
+                        <button
+                          key={feat.id}
+                          className="w-full text-left px-3 py-2 text-xs text-text hover:bg-surface rounded-lg transition-colors flex items-center gap-2 group"
+                          onClick={() => handleSelectSuggestion(feat)}
+                        >
+                          <MapPin className="w-3 h-3 text-primary" />
+                          <span className="truncate">{feat.place_name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : searchHistory.length > 0 ? (
+                    <div className="p-2 space-y-1">
+                      <div className="text-[10px] font-bold text-secondary uppercase px-2 py-1">Letzte Suchen</div>
+                      {searchHistory.map((address, idx) => (
+                        <button
+                          key={idx}
+                          className="w-full text-left px-3 py-2 text-xs text-text hover:bg-surface rounded-lg transition-colors flex items-center gap-2 group"
+                          onClick={() => handleSelectHistory(address)}
+                        >
+                          <Clock className="w-3 h-3 text-secondary" />
+                          <span className="truncate">{address}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
             <Button 
               type="button"
               onClick={handleLocateMe}
