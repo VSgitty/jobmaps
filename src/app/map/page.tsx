@@ -1,7 +1,7 @@
 'use client';
 
 import { JobMap } from '@/maps/job-map';
-import { Search, MapPin, Navigation, Car, Bike, Train, ChevronLeft, ExternalLink, Briefcase, Filter, CheckCircle2, Building2, Users, Award, Sparkles, Clock, Image as ImageIcon } from 'lucide-react';
+import { Search, MapPin, Navigation, Car, Bike, Train, ChevronLeft, ExternalLink, Briefcase, Filter, CheckCircle2, Building2, Users, Award, Sparkles, Clock, X, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useState, useEffect, useCallback, Suspense } from 'react';
@@ -314,6 +314,16 @@ function MapViewContent() {
                 onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
               />
               
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-secondary hover:text-text transition-colors p-1"
+                  title="Eingabe löschen"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+
               {/* Autocomplete & History Dropdown */}
               {showDropdown && (suggestions.length > 0 || searchHistory.length > 0) && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-xl shadow-2xl z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2">
