@@ -5,7 +5,7 @@ import Map, { NavigationControl, Marker, ViewState, Source, Layer, MapRef } from
 import "mapbox-gl/dist/mapbox-gl.css";
 import { Layers, User, Car, Bike, Bus, Navigation } from "lucide-react";
 import { UserLocation, RouteMode, Job } from "../app/map/page";
-import { getJobCategory } from "@/lib/job-categories";
+import { getJobCategory, CategoryInfo } from "@/lib/job-categories";
 import circle from '@turf/circle';
 import Supercluster from 'supercluster';
 
@@ -18,7 +18,8 @@ const MAP_STYLES = {
 const getCompanyBrand = (name: string) => {
   if (!name) return null;
   const n = name.toLowerCase();
-  if (n.includes('deutsche bahn') || n === 'db') return { text: 'DB', color: '#FF0000', textCol: 'text-white' };
+  if (n.includes('netto')) return { text: 'Netto', color: '#FFD100', textCol: 'text-black font-extrabold', font: 'text-[9px]' };
+  if (n.includes('deutsche bahn') || n.includes(' db ') || n.startsWith('db ')) return { text: 'DB', color: '#FF0000', textCol: 'text-white' };
   if (n.includes('telekom')) return { text: 'T', color: '#E20074', textCol: 'text-white' };
   if (n.includes('siemens')) return { text: 'SIE', color: '#009999', textCol: 'text-white', font: 'text-[9px]' };
   if (n.includes('bosch')) return { text: 'BOS', color: '#ED0007', textCol: 'text-white', font: 'text-[9px]' };
@@ -26,12 +27,15 @@ const getCompanyBrand = (name: string) => {
   if (n.includes('aldi')) return { text: 'ALDI', color: '#005CA9', textCol: 'text-white', font: 'text-[9px]' };
   if (n.includes('lidl')) return { text: 'Lidl', color: '#0050AA', textCol: 'text-yellow-400', font: 'text-[10px]' };
   if (n.includes('rewe')) return { text: 'REWE', color: '#CC071E', textCol: 'text-white', font: 'text-[9px]' };
+  if (n.includes('penny')) return { text: 'PENNY', color: '#C8102E', textCol: 'text-white', font: 'text-[8px]' };
   if (n.includes('kaufland')) return { text: 'K', color: '#E3000F', textCol: 'text-white' };
-  if (n.includes('dm-drogerie') || n === 'dm') return { text: 'dm', color: '#003282', textCol: 'text-yellow-400' };
+  if (n.includes('dm-drogerie') || n.includes('dm ')) return { text: 'dm', color: '#003282', textCol: 'text-yellow-400' };
   if (n.includes('rossmann')) return { text: 'R', color: '#E3000F', textCol: 'text-white' };
   if (n.includes('allianz')) return { text: 'Allianz', color: '#003781', textCol: 'text-white', font: 'text-[8px]' };
-  if (n.includes('k&s') || n.includes('senioren')) return { text: 'K&S', color: '#005b82', textCol: 'text-white', font: 'text-[10px]' };
+  if (n.includes('k&s') || n.includes('gersprenz') || n.includes('senioren') || n.includes('pflege')) return { text: 'K&S', color: '#005b82', textCol: 'text-white', font: 'text-[10px]' };
   if (n.includes('diakonie')) return { text: 'Diakonie', color: '#005ca9', textCol: 'text-white', font: 'text-[8px]' };
+  if (n.includes('caritas')) return { text: 'Caritas', color: '#E3000F', textCol: 'text-white', font: 'text-[8px]' };
+  if (n.includes('dhl') || n.includes('deutsche post') || n.includes('postbote')) return { text: 'DHL', color: '#FFCC00', textCol: 'text-black font-extrabold', font: 'text-[9px]' };
   if (n.includes('volksbank') || n.includes('vr bank')) return { text: 'V', color: '#0061B5', textCol: 'text-orange-500' };
   if (n.includes('sparkasse')) return { text: 'S', color: '#FF0000', textCol: 'text-white' };
   return null;
@@ -242,8 +246,8 @@ export function JobMap({
   // Supercluster setup
   const supercluster = useMemo(() => {
     const sc = new Supercluster({
-      radius: 35, // Reduced from 50 to show more individual markers sooner
-      maxZoom: 15 // Clusters will break apart completely at zoom 15
+      radius: 40,
+      maxZoom: 17 // Clusters will stay intact up to zoom 17 so identical addresses stay clean
     });
 
     const points = jobs.map(job => ({
@@ -568,15 +572,37 @@ export function JobMap({
               clusterLeaves = [];
             }
 
+            // Clean company name helper
+            const cleanCoName = (str: string = '') => str.toLowerCase().replace(/(gmbh|ag|se|co\.|kg|stiftung|e\.v\.|ltd|& co|deutschland|betrieb|niederlassung|ggmbh)/gi, '').replace(/[^a-z0-9]/gi, '').trim();
+
             // Check if all jobs in cluster belong to the same company
             const firstJob = clusterLeaves[0]?.properties?.job;
             const firstCompany = firstJob?.company_name || '';
-            const isSameCompany = firstCompany && clusterLeaves.every(leaf => 
-              (leaf.properties?.job?.company_name || '').toLowerCase().trim() === firstCompany.toLowerCase().trim()
-            );
+            const firstClean = cleanCoName(firstCompany);
+            
+            const isSameCompany = firstClean.length >= 3 && clusterLeaves.every(leaf => {
+              const leafClean = cleanCoName(leaf.properties?.job?.company_name || '');
+              return leafClean.includes(firstClean) || firstClean.includes(leafClean);
+            });
 
-            const brand = isSameCompany ? getCompanyBrand(firstCompany) : null;
-            const firstCat = firstJob ? getJobCategory(firstJob.title, firstJob.company_name, firstJob.beruf) : null;
+            const brand = (isSameCompany || firstCompany) ? getCompanyBrand(firstCompany) : null;
+            
+            // Extract top unique categories / brands inside this multi-company cluster
+            const brandList: any[] = [];
+            const catList: CategoryInfo[] = [];
+
+            for (const leaf of clusterLeaves) {
+              const j = leaf.properties?.job;
+              if (j) {
+                const b = getCompanyBrand(j.company_name);
+                if (b && !brandList.some(x => x.text === b.text)) brandList.push(b);
+                const c = getJobCategory(j.title, j.company_name, j.beruf);
+                if (c && !catList.some(x => x.id === c.id)) catList.push(c);
+              }
+            }
+
+            const uniqueBrands = brandList.slice(0, 2);
+            const uniqueCats = catList.slice(0, 3);
 
             return (
               <Marker
@@ -600,7 +626,7 @@ export function JobMap({
                 <div 
                   className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-white shadow-2xl backdrop-blur-md cursor-pointer transition-all duration-300 group ${isHoveredCluster ? 'scale-125 z-50 ring-4 ring-blue-400 bg-blue-600' : 'bg-slate-900/95 hover:scale-110'}`}
                   style={{
-                    backgroundColor: isHoveredCluster ? '#2563eb' : (brand ? brand.color : undefined)
+                    backgroundColor: isHoveredCluster ? '#2563eb' : (isSameCompany && brand ? brand.color : undefined)
                   }}
                   title={isSameCompany ? `${firstCompany} (${pointCount} Stellen)` : `${pointCount} Stellen an diesem Ort`}
                 >
@@ -608,18 +634,29 @@ export function JobMap({
                     <div className="absolute -inset-1 rounded-full bg-blue-500/50 animate-ping pointer-events-none" />
                   )}
 
-                  {/* Brand / Category Icon */}
-                  {brand ? (
+                  {/* Brand / Multi-Category Preview Icons */}
+                  {isSameCompany && brand ? (
                     <span className={`font-black tracking-tighter drop-shadow-sm ${brand.font || 'text-[11px]'} ${brand.textCol} bg-black/20 px-1.5 py-0.5 rounded-md`}>
                       {brand.text}
                     </span>
-                  ) : firstCat ? (
-                    <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-white">
-                      <Layers className="w-3 h-3" />
+                  ) : uniqueBrands.length > 0 ? (
+                    <div className="flex items-center -space-x-1.5">
+                      {uniqueBrands.map((b, i) => (
+                        <span key={i} className={`w-5 h-5 rounded-full flex items-center justify-center font-black text-[9px] border border-white ${b.textCol}`} style={{ backgroundColor: b.color }}>
+                          {b.text.slice(0, 2)}
+                        </span>
+                      ))}
                     </div>
                   ) : (
-                    <div className="w-5 h-5 rounded-full bg-blue-500/30 flex items-center justify-center text-blue-300 group-hover:text-white">
-                      <Layers className="w-3 h-3" />
+                    <div className="flex items-center -space-x-1.5">
+                      {uniqueCats.map((catItem, i) => {
+                        const CatIconComp = catItem.icon;
+                        return (
+                          <div key={i} className="w-5 h-5 rounded-full flex items-center justify-center text-white border border-white shadow-xs" style={{ backgroundColor: catItem.color }}>
+                            <CatIconComp className="w-3 h-3" />
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
 

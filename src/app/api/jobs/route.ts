@@ -116,14 +116,17 @@ function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: num
 }
 
 function resolveJobCoordinates(item: RawArbeitsagenturJob, searchLat: number, searchLon: number, idx: number): [number, number] {
+  // Golden ratio angle distribution for optimal non-overlapping spiral
+  const goldenAngle = 2.39996;
+
   // 1. If explicit coordinates are provided by Arbeitsagentur API
   if (item.arbeitsort?.koordinaten?.lat && item.arbeitsort?.koordinaten?.lon) {
     const latNum = Number(item.arbeitsort.koordinaten.lat);
     const lonNum = Number(item.arbeitsort.koordinaten.lon);
     if (!isNaN(latNum) && !isNaN(lonNum) && latNum > 45 && lonNum > 5) {
-      const angle = (idx * 0.8) + (Math.random() * 0.4);
-      const r = 0.0001 + (idx % 3) * 0.0001;
-      return [latNum + r * Math.cos(angle), lonNum + r * Math.sin(angle)];
+      const angle = idx * goldenAngle;
+      const r = 0.0004 + (idx % 10) * 0.0003; // ~40-300m radial spiral spread to prevent stacking
+      return [latNum + r * Math.cos(angle) * 1.3, latNum + r * Math.sin(angle)];
     }
   }
 
@@ -131,15 +134,15 @@ function resolveJobCoordinates(item: RawArbeitsagenturJob, searchLat: number, se
   const city = (item.arbeitsort?.ort || '').toLowerCase().trim();
   for (const [cityName, coords] of Object.entries(GERMAN_CITY_COORDS)) {
     if (city.includes(cityName)) {
-      const angle = (idx * 1.3) + (Math.random() * 0.5);
-      const r = 0.002 + (idx % 5) * 0.0015; // 100-300m jitter around city center
-      return [coords[0] + r * Math.sin(angle), coords[1] + r * Math.cos(angle)];
+      const angle = idx * goldenAngle;
+      const r = 0.0015 + (Math.sqrt(idx + 1) * 0.0012); // Clean 150m-800m city spread
+      return [coords[0] + r * Math.sin(angle), coords[1] + r * Math.cos(angle) * 1.3];
     }
   }
 
   // 3. Fallback: Search center + radius jitter
-  const angle = (idx * 2.39996);
-  const r = 0.004 + (Math.sqrt(idx + 1) * 0.003);
+  const angle = idx * goldenAngle;
+  const r = 0.003 + (Math.sqrt(idx + 1) * 0.0025);
   return [searchLat + r * Math.sin(angle), searchLon + r * Math.cos(angle) * 1.3];
 }
 
