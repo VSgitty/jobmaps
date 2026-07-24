@@ -44,7 +44,7 @@ interface JobMapProps {
   radiusKm?: number;
   jobs?: Job[];
   selectedJob?: Job | null;
-  onSelectJob?: (job: Job) => void;
+  onSelectJob?: (job: Job | null) => void;
   hoveredJobId?: string | null;
   onHoverJob?: (jobId: string | null) => void;
   routeMode?: RouteMode;
@@ -167,17 +167,44 @@ export function JobMap({
     }
   }, [selectedJob, userLocation]);
 
-  // Fly to selected job CLOSE-UP (zoom 16.5 - street level detail)
+  // Camera transition: 3D tilt (pitch: 55) on selection, reset to 2D flat view (pitch: 0) on deselection
+  const prevSelectedJobIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (selectedJob && mapRef.current) {
-      mapRef.current.flyTo({
-        center: [selectedJob.longitude, selectedJob.latitude],
-        zoom: 16.5,
-        pitch: 60, // Deep 3D tilt when looking at a specific job
-        duration: 1200
+    if (!mapRef.current) return;
+
+    if (selectedJob) {
+      if (selectedJob.id !== prevSelectedJobIdRef.current) {
+        prevSelectedJobIdRef.current = selectedJob.id;
+        mapRef.current.flyTo({
+          center: [selectedJob.longitude, selectedJob.latitude],
+          zoom: 16,
+          pitch: 55, // 3D tilt when clicking a job
+          bearing: -15, // Subtle 3D perspective
+          duration: 1100
+        });
+      }
+    } else if (prevSelectedJobIdRef.current && !selectedJob) {
+      // User clicked away / deselected: smoothly return to 2D flat view (pitch: 0)
+      prevSelectedJobIdRef.current = null;
+
+      const targetCenter = userLocation 
+        ? [userLocation.longitude, userLocation.latitude] 
+        : mapRef.current.getCenter().toArray();
+
+      const targetZoom = userLocation 
+        ? Math.min(15, Math.max(9, 15.5 - Math.log2(radiusKm / 1.5)))
+        : mapRef.current.getZoom();
+
+      mapRef.current.easeTo({
+        center: targetCenter as [number, number],
+        zoom: targetZoom,
+        pitch: 0,   // Return to normal 2D flat view
+        bearing: 0, // Reset bearing to north
+        duration: 900
       });
     }
-  }, [selectedJob]);
+  }, [selectedJob, userLocation, radiusKm]);
 
   // Make Mapbox POIs / Shops semi-transparent on style load
   const handleMapLoad = () => {
@@ -254,6 +281,11 @@ export function JobMap({
       <Map
         ref={mapRef}
         initialViewState={mapInitialViewState}
+        onClick={() => {
+          if (onSelectJob) {
+            onSelectJob(null);
+          }
+        }}
         onMove={(evt) => {
           setCurrentZoom(evt.viewState.zoom);
           if (evt.target && typeof evt.target.getBounds === 'function') {
