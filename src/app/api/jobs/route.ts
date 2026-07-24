@@ -59,6 +59,50 @@ export interface Job {
   };
 }
 
+// Real German Major City Coordinates Cache for accurate job marker placement
+const GERMAN_CITY_COORDS: Record<string, [number, number]> = {
+  'frankfurt': [50.1109, 8.6821],
+  'babenhausen': [50.0080, 8.9550],
+  'darmstadt': [49.8728, 8.6512],
+  'offenbach': [50.1006, 8.7667],
+  'hanau': [50.1328, 8.9169],
+  'aschaffenburg': [49.9738, 9.1481],
+  'wiesbaden': [50.0826, 8.2400],
+  'mainz': [50.0000, 8.2711],
+  'dieburg': [49.8979, 8.8415],
+  'groß-umstadt': [49.8680, 8.9287],
+  'gross-umstadt': [49.8680, 8.9287],
+  'münchen': [48.1351, 11.5820],
+  'berlin': [52.5200, 13.4050],
+  'hamburg': [53.5511, 9.9937],
+  'köln': [50.9375, 6.9603],
+  'stuttgart': [48.7758, 9.1829],
+  'düsseldorf': [51.2277, 6.7735],
+  'dortmund': [51.5136, 7.4653],
+  'essen': [51.4556, 7.0116],
+  'leipzig': [51.3397, 12.3731],
+  'bremen': [53.0793, 8.8017],
+  'dresden': [51.0504, 13.7373],
+  'hannover': [52.3759, 9.7320],
+  'nürnberg': [49.4521, 11.0767],
+  'mannheim': [49.4875, 8.4660],
+  'karlsruhe': [49.0069, 8.4037],
+  'augsburg': [48.3705, 10.8978],
+  'kassel': [51.3127, 9.4797],
+  'koblenz': [50.3569, 7.5890],
+  'fulda': [50.5516, 9.6752],
+  'giessen': [50.5841, 8.6784],
+  'gießen': [50.5841, 8.6784],
+  'marburg': [50.8108, 8.7708],
+  'wetzlar': [50.5667, 8.5000],
+  'rüsselsheim': [49.9922, 8.4239],
+  'bad homburg': [50.2268, 8.6186],
+  'rodgau': [50.0234, 8.8845],
+  'neu-isenburg': [50.0543, 8.6946],
+  'langenhagen': [52.4485, 9.7397],
+  'sulzbach': [50.1333, 8.5283],
+};
+
 function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371; // Earth's radius in km
   const dLat = (lat2 - lat1) * (Math.PI / 180);
@@ -71,6 +115,34 @@ function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: num
   return R * c;
 }
 
+function resolveJobCoordinates(item: RawArbeitsagenturJob, searchLat: number, searchLon: number, idx: number): [number, number] {
+  // 1. If explicit coordinates are provided by Arbeitsagentur API
+  if (item.arbeitsort?.koordinaten?.lat && item.arbeitsort?.koordinaten?.lon) {
+    const latNum = Number(item.arbeitsort.koordinaten.lat);
+    const lonNum = Number(item.arbeitsort.koordinaten.lon);
+    if (!isNaN(latNum) && !isNaN(lonNum) && latNum > 45 && lonNum > 5) {
+      const angle = (idx * 0.8) + (Math.random() * 0.4);
+      const r = 0.0001 + (idx % 3) * 0.0001;
+      return [latNum + r * Math.cos(angle), lonNum + r * Math.sin(angle)];
+    }
+  }
+
+  // 2. Lookup city name in GERMAN_CITY_COORDS
+  const city = (item.arbeitsort?.ort || '').toLowerCase().trim();
+  for (const [cityName, coords] of Object.entries(GERMAN_CITY_COORDS)) {
+    if (city.includes(cityName)) {
+      const angle = (idx * 1.3) + (Math.random() * 0.5);
+      const r = 0.002 + (idx % 5) * 0.0015; // 100-300m jitter around city center
+      return [coords[0] + r * Math.sin(angle), coords[1] + r * Math.cos(angle)];
+    }
+  }
+
+  // 3. Fallback: Search center + radius jitter
+  const angle = (idx * 2.39996);
+  const r = 0.004 + (Math.sqrt(idx + 1) * 0.003);
+  return [searchLat + r * Math.sin(angle), searchLon + r * Math.cos(angle) * 1.3];
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const lat = parseFloat(searchParams.get('lat') || '50.1109');
@@ -80,12 +152,10 @@ export async function GET(request: Request) {
   const jobType = searchParams.get('jobType') || '';
 
   try {
-    // 1. Get city or postcode for BA API - use coordinates if geocoding fails
-    let locationTerm = `${lat},${lon}`; // BA API supports "lat,lon" format for 'wo'
-    
-    // If radius is 200km (max), enable nationwide mode
+    // 1. Get city or postcode for BA API
+    let locationTerm = `${lat},${lon}`;
     const isNationwide = radius >= 195;
-    
+
     if (isNationwide) {
       locationTerm = 'Deutschland';
     } else {
@@ -104,237 +174,170 @@ export async function GET(request: Request) {
           }
         }
       } catch (e) {
-        console.warn('Geocoding error, falling back to coordinate-based search:', e);
+        console.warn('Geocoding warning:', e);
       }
     }
 
-    // 2. Fetch real jobs from Arbeitsagentur Jobsuche API (increased size for radius coverage)
-    // The BA API size limit is usually around 500-1000. Let's use 1000 for maximum coverage.
-    let baUrl = `https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs?wo=${encodeURIComponent(locationTerm)}&size=1000`;
-    
-    if (!isNationwide) {
-      baUrl += `&umkreis=${Math.min(200, Math.max(1, Math.round(radius)))}`;
-    }
+    // 2. Fetch real jobs from Arbeitsagentur Jobsuche API (size=100 is max per page)
+    // Fetch pages 1, 2, 3 concurrently to get up to 300 real jobs!
+    const pages = [1, 2, 3];
+    const fetchPromises = pages.map(async (page) => {
+      let baUrl = `https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs?wo=${encodeURIComponent(locationTerm)}&page=${page}&size=100`;
+      if (!isNationwide) {
+        baUrl += `&umkreis=${Math.min(200, Math.max(1, Math.round(radius)))}`;
+      }
+      if (query) {
+        baUrl += `&was=${encodeURIComponent(query)}`;
+      }
 
-    if (query) {
-      baUrl += `&was=${encodeURIComponent(query)}`;
-    }
+      const baRes = await fetch(baUrl, {
+        headers: {
+          'X-API-Key': 'jobboerse-jobsuche',
+          'User-Agent': 'JobMaps/1.0 (https://jobmaps.local)'
+        },
+        next: { revalidate: 300 }
+      });
 
-    const baRes = await fetch(baUrl, {
-      headers: {
-        'X-API-Key': 'jobboerse-jobsuche',
-        'User-Agent': 'JobMaps/1.0 (https://jobmaps.local)'
-      },
-      next: { revalidate: 300 }
+      if (!baRes.ok) return [];
+      const baData = await baRes.json();
+      return (baData.stellenangebote || []) as RawArbeitsagenturJob[];
     });
 
-    if (baRes.ok) {
-      const baData = await baRes.json();
-      const rawJobs: RawArbeitsagenturJob[] = baData.stellenangebote || [];
+    const resultsPages = await Promise.all(fetchPromises);
+    const rawJobs = resultsPages.flat();
 
-      if (rawJobs.length > 0) {
-        const jobs = rawJobs.map((item, idx) => {
-          let jobLat = item.arbeitsort?.koordinaten?.lat;
-          let jobLon = item.arbeitsort?.koordinaten?.lon;
+    if (rawJobs.length > 0) {
+      const processedJobs: Job[] = [];
 
-          // Arbeitsagentur summary list items don't include lat/lon coordinates.
-          // Distribute jobs realistically within radius around target location:
-          if (!jobLat || !jobLon) {
-            const goldenAngle = 2.39996;
-            const distSpread = 0.003 + (Math.sqrt(idx + 1) * 0.006 * (Math.min(radius, 50) / 20));
-            const angle = idx * goldenAngle;
-            jobLat = lat + (distSpread * Math.sin(angle));
-            jobLon = lon + (distSpread * Math.cos(angle) * 1.3);
-          } else {
-            // Apply micro-dispersion (10-30 meters) to avoid marker overlap
-            const angle = (idx * 0.8) + (Math.random() * 0.4);
-            const r = 0.0001 + (idx % 3) * 0.0001;
-            jobLat += r * Math.cos(angle);
-            jobLon += r * Math.sin(angle);
-          }
+      for (let idx = 0; idx < rawJobs.length; idx++) {
+        const item = rawJobs[idx];
+        const [jobLat, jobLon] = resolveJobCoordinates(item, lat, lon, idx);
 
-          const exactDist = calculateDistanceKm(lat, lon, jobLat, jobLon);
-          // Only include if within user's requested radius + 10% buffer for border cases
-          if (!isNationwide && exactDist > radius * 1.1) return null;
-          const distKm = Math.round(exactDist * 100) / 100;
-          const distText = exactDist < 1 ? `${Math.max(10, Math.round(exactDist * 1000))} m` : `${(Math.round(exactDist * 10) / 10).toFixed(1)} km`;
+        const exactDist = calculateDistanceKm(lat, lon, jobLat, jobLon);
+        // Filter out jobs outside requested radius (+ 15% margin)
+        if (!isNationwide && exactDist > radius * 1.15) {
+          continue;
+        }
 
-          let typeStr = 'Vollzeit';
-          const az = item.arbeitszeit?.toLowerCase() || '';
-          if (az === 'tz' || az.includes('teilzeit')) typeStr = 'Teilzeit';
-          if (az === 'mj' || az.includes('minijob')) typeStr = 'Minijob';
-          if (az.includes('home') || az.includes('remot')) typeStr = 'Homeoffice / Remote';
+        const distKm = Math.round(exactDist * 100) / 100;
+        const distText = exactDist < 1 ? `${Math.max(10, Math.round(exactDist * 1000))} m` : `${(Math.round(exactDist * 10) / 10).toFixed(1)} km`;
 
-          const redirectUrl = item.externeUrl ||
-            (item.refnr ? `https://www.arbeitsagentur.de/jobsuche/jobdetail/${item.refnr}` : 'https://www.arbeitsagentur.de/jobsuche/');
+        let typeStr = 'Vollzeit';
+        const az = item.arbeitszeit?.toLowerCase() || '';
+        if (az === 'tz' || az.includes('teilzeit')) typeStr = 'Teilzeit';
+        if (az === 'mj' || az.includes('minijob')) typeStr = 'Minijob';
+        if (az.includes('home') || az.includes('remot')) typeStr = 'Homeoffice / Remote';
 
-          const locName = [item.arbeitsort?.plz, item.arbeitsort?.ort]
-            .filter(Boolean)
-            .join(' ') || 'Deutschland';
+        const redirectUrl = item.externeUrl ||
+          (item.refnr ? `https://www.arbeitsagentur.de/jobsuche/jobdetail/${item.refnr}` : 'https://www.arbeitsagentur.de/jobsuche/');
 
-          // Helper for industry photos & tailored job details
-          const titleLower = (item.titel || item.beruf || '').toLowerCase();
+        const locName = [item.arbeitsort?.plz, item.arbeitsort?.ort]
+          .filter(Boolean)
+          .join(' ') || 'Deutschland';
 
-          let images = [
-            'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&q=80',
-            'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&q=80',
-            'https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=800&q=80'
-          ];
-          let industry = 'Dienstleistungen & Beratung';
-          let requirements = [
+        const titleLower = (item.titel || item.beruf || '').toLowerCase();
+
+        let images = [
+          'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&q=80',
+          'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&q=80'
+        ];
+        let industry = 'Dienstleistungen & Beratung';
+
+        if (titleLower.match(/software|developer|it|data|system|analyst|informatik/)) {
+          images = ['https://images.unsplash.com/photo-1531482615713-2afd69097998?w=800&q=80'];
+          industry = 'Software & Informationstechnologie';
+        } else if (titleLower.match(/verkäufer|drogerie|supermarkt|retail|filiale|kasse|dm|edeka|rewe|aldi|lidl|kaufland/)) {
+          images = ['https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?w=800&q=80'];
+          industry = 'Einzelhandel & Konsumgüter';
+        } else if (titleLower.match(/pflege|arzt|medizin|gesundheit|klinik|mfa/)) {
+          images = ['https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=800&q=80'];
+          industry = 'Gesundheitswesen & Pflege';
+        } else if (titleLower.match(/mechatroniker|ingenieur|elektroniker|monteur|produktion|mechaniker|bau/)) {
+          images = ['https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&q=80'];
+          industry = 'Industrie, Maschinenbau & Technik';
+        }
+
+        const sources: JobSource[] = [
+          { name: 'Arbeitsagentur', url: redirectUrl, isPrimary: true }
+        ];
+
+        if (item.externeUrl) {
+          sources.push({ name: 'Arbeitgeber-Direktlink', url: item.externeUrl, isPrimary: false });
+        }
+
+        processedJobs.push({
+          id: item.refnr || `ba-${idx}`,
+          title: item.titel || item.beruf || 'Stellenangebot',
+          company_name: item.arbeitgeber || 'Unternehmen',
+          location_name: locName,
+          latitude: jobLat,
+          longitude: jobLon,
+          exact_distance: exactDist,
+          distance: distKm,
+          distance_text: distText,
+          type: typeStr,
+          redirect_url: redirectUrl,
+          sources: sources,
+          published_date: item.aktuelleVeroeffentlichungsdatum || new Date().toISOString().split('T')[0],
+          beruf: item.beruf || item.titel,
+          rating: (4.0 + (idx % 10) * 0.1).toFixed(1),
+          company_size: idx % 2 === 0 ? '500 - 2.500 Mitarbeiter' : '10.000+ Mitarbeiter',
+          industry: industry,
+          description: `Offizielle Stellenanzeige von ${item.arbeitgeber || 'Arbeitgeber'} in ${locName}.`,
+          images: images,
+          requirements: [
             'Erfolgreich abgeschlossene Ausbildung oder entsprechendes Studium',
-            'Mehrjährige praktische Erfahrungen im beschriebenen Aufgabenfeld',
-            'Eigenverantwortliche, lösungsorientierte und strukturierte Arbeitsweise',
-            'Starke Team- und Kommunikationsfähigkeit',
-            'Fließende Deutschkenntnisse in Wort und Schrift'
-          ];
-          const responsibilities = [
-            'Verantwortung für anspruchsvolle Aufgaben in deinem Spezialgebiet',
-            'Mitarbeit an innovativen Projekten im interdisziplinären Team',
-            'Kontinuierliche Optimierung von Arbeitsprozessen und Schnittstellen',
-            'Direkter Ansprechpartner für Kunden, Partner oder interne Abteilungen'
-          ];
-          const benefits = [
-            'Flexible Arbeitszeiten & Hybrides Arbeiten (Homeoffice)',
-            '30 Tage Urlaub & Sonderurlaubstage',
-            'Attraktive Vergütung nach Tarif / Branchenstandard + Boni',
-            'JobRad-Leasing & ÖPNV-Fahrtkostenzuschuss',
-            'Betriebliche Altersvorsorge & Gesundheitsbudget',
-            'Umfangreiche Weiterbildungsangebote & Mentoring'
-          ];
-
-          if (titleLower.match(/software|developer|it|data|system|analyst|informatik/)) {
-            images = [
-              'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=800&q=80',
-              'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&q=80',
-              'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&q=80'
-            ];
-            industry = 'Software & Informationstechnologie';
-            requirements = [
-              'Fundierte Kenntnisse in modernen Programmiersprachen & Frameworks',
-              'Erfahrung mit Datenstrukturen, APIs und cloud-basierten Architekturen',
-              'Freude am Lösen komplexer technischer Herausforderungen',
-              'Gute Deutsch- und Englischkenntnisse'
-            ];
-          } else if (titleLower.match(/verkäufer|drogerie|supermarkt|retail|filiale|kasse|dm|edeka|rewe|aldi|lidl|kaufland/)) {
-            images = [
-              'https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?w=800&q=80',
-              'https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?w=800&q=80',
-              'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=800&q=80'
-            ];
-            industry = 'Einzelhandel & Konsumgüter';
-            requirements = [
-              'Freude am Kundenkontakt und kundenorientiertes Auftreten',
-              'Zuverlässigkeit, Pünktlichkeit und Teamgeist',
-              'Bereitschaft zur Schichtarbeit im Rahmen der Öffnungszeiten',
-              'Kaufmännisches Grundverständnis von Vorteil'
-            ];
-          } else if (titleLower.match(/pflege|arzt|medizin|gesundheit|klinik|mfa/)) {
-            images = [
-              'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=800&q=80',
-              'https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?w=800&q=80',
-              'https://images.unsplash.com/photo-1516549655169-df83a0774514?w=800&q=80'
-            ];
-            industry = 'Gesundheitswesen & Pflege';
-            requirements = [
-              'Examen in der Gesundheits- und Krankenpflege / Altenpflege oder MFA',
-              'Hohes Maß an Empathie, Zuverlässigkeit und Patientenorientierung',
-              'Bereitschaft zum Schichtdienst',
-              'Verantwortungsbewusstes Handeln in Akutsituationen'
-            ];
-          } else if (titleLower.match(/mechatroniker|ingenieur|elektroniker|monteur|produktion|mechaniker|bau/)) {
-            images = [
-              'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&q=80',
-              'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&q=80',
-              'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?w=800&q=80'
-            ];
-            industry = 'Industrie, Maschinenbau & Technik';
+            'Eigenverantwortliche, strukturierte Arbeitsweise',
+            'Gute Deutschkenntnisse'
+          ],
+          responsibilities: [
+            'Verantwortung für Aufgaben im Fachbereich',
+            'Mitarbeit im Team'
+          ],
+          benefits: [
+            'Flexible Arbeitszeiten',
+            'Branchenübliche Vergütung',
+            'Weiterbildungsmöglichkeiten'
+          ],
+          routes: {
+            driving: Math.max(1, Math.round((exactDist / 50) * 60)) + ' Min',
+            cycling: Math.max(1, Math.round((exactDist / 15) * 60)) + ' Min',
+            walking: Math.max(1, Math.round((exactDist / 5) * 60)) + ' Min'
           }
-
-          const sources: JobSource[] = [
-            { name: 'Arbeitsagentur', url: redirectUrl, isPrimary: true }
-          ];
-          if (idx % 2 === 0) {
-            sources.push({ name: 'JobMaps Direkt (Arbeitgeber)', url: redirectUrl, isPrimary: false });
-          }
-          if (idx % 3 === 0) {
-            sources.push({ name: 'StepStone', url: `https://www.stepstone.de/jobs/${encodeURIComponent(item.titel || 'job')}`, isPrimary: false });
-          }
-          if (idx % 4 === 0) {
-            sources.push({ name: 'LinkedIn', url: `https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(item.titel || 'job')}`, isPrimary: false });
-          }
-
-          return {
-            id: item.refnr || `ba-${idx}`,
-            title: item.titel || item.beruf || 'Stellenangebot',
-            company_name: item.arbeitgeber || 'Unternehmen',
-            location_name: locName,
-            latitude: jobLat,
-            longitude: jobLon,
-            exact_distance: exactDist,
-            distance: distKm,
-            distance_text: distText,
-            type: typeStr,
-            redirect_url: redirectUrl,
-            sources: sources,
-            published_date: item.aktuelleVeroeffentlichungsdatum || new Date().toISOString().split('T')[0],
-            beruf: item.beruf || item.titel,
-            rating: (4.0 + (idx % 10) * 0.1).toFixed(1),
-            company_size: idx % 2 === 0 ? '500 - 2.500 Mitarbeiter' : '10.000+ Mitarbeiter',
-            industry: industry,
-            description: `Unser Partnerunternehmen ${item.arbeitgeber || 'Arbeitgeber'} sucht ab sofort Verstärkung für das Team in ${locName}. Wir bieten ein hochmotiviertes Arbeitsumfeld, moderne Arbeitsmittel und hervorragende Perspektiven zur beruflichen Weiterentwicklung.`,
-            images: images,
-            requirements: requirements,
-            responsibilities: responsibilities,
-            benefits: benefits,
-            routes: {
-              driving: Math.max(1, Math.round((exactDist / 50) * 60)) + ' Min',
-              cycling: Math.max(1, Math.round((exactDist / 15) * 60)) + ' Min',
-              walking: Math.max(1, Math.round((exactDist / 5) * 60)) + ' Min'
-            }
-          };
-        }).filter(Boolean) as Job[];
-
-        // Combine API jobs with direct employer portal listings
-        const directEmployerJobs = generateDirectEmployerJobs(lat, lon, radius, query, jobType);
-        const combinedRaw = [...jobs, ...directEmployerJobs];
-
-        // Deduplicate jobs from multiple sources into a single merged entry with all sources attached
-        let mergedJobs = deduplicateAndMergeJobs(combinedRaw);
-
-        // Filter by jobType if specified
-        if (jobType && jobType !== 'Alle') {
-          mergedJobs = mergedJobs.filter(j => (j.type || '').toLowerCase().includes(jobType.toLowerCase()));
-        }
-
-        // Sort strictly by exact distance ascending (nearest jobs first)
-        mergedJobs.sort((a, b) => {
-          const aDist = typeof a.exact_distance === 'number' ? a.exact_distance : 0;
-          const bDist = typeof b.exact_distance === 'number' ? b.exact_distance : 0;
-          return aDist - bDist;
         });
-
-        if (mergedJobs.length > 0) {
-          return NextResponse.json({ 
-            jobs: mergedJobs, 
-            source: 'Multi-Source (BA + Employer Portal + Partner Networks)', 
-            total: mergedJobs.length,
-            count: mergedJobs.length 
-          });
-        }
       }
+
+      // Deduplicate jobs from multiple sources
+      let mergedJobs = deduplicateAndMergeJobs(processedJobs);
+
+      // Filter by jobType if specified
+      if (jobType && jobType !== 'Alle') {
+        mergedJobs = mergedJobs.filter(j => (j.type || '').toLowerCase().includes(jobType.toLowerCase()));
+      }
+
+      // Sort strictly by exact distance ascending (nearest jobs first)
+      mergedJobs.sort((a, b) => {
+        const aDist = typeof a.exact_distance === 'number' ? a.exact_distance : 0;
+        const bDist = typeof b.exact_distance === 'number' ? b.exact_distance : 0;
+        return aDist - bDist;
+      });
+
+      return NextResponse.json({ 
+        jobs: mergedJobs, 
+        source: 'Real Bundesagentur für Arbeit API', 
+        total: mergedJobs.length,
+        count: mergedJobs.length 
+      });
     }
   } catch (err) {
     console.error('Error fetching real jobs from Arbeitsagentur API:', err);
   }
 
-  // Fallback jobs centered around requested coordinates if API call yields no results
-  const fallbackJobs = generateFallbackJobs(lat, lon, radius, query, jobType);
   return NextResponse.json({ 
-    jobs: fallbackJobs, 
-    source: 'Fallback Multi-Source Data', 
-    total: fallbackJobs.length, 
-    count: fallbackJobs.length 
+    jobs: [], 
+    source: 'Arbeitsagentur API (Keine Treffer)', 
+    total: 0, 
+    count: 0 
   });
 }
 
