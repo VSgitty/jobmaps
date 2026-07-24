@@ -249,7 +249,7 @@ export function JobMap({
   const supercluster = useMemo(() => {
     const sc = new Supercluster({
       radius: 40,
-      maxZoom: 17 // Clusters will stay intact up to zoom 17 so identical addresses stay clean
+      maxZoom: 20 // Keep same-location building jobs grouped into a single brand badge at all zoom levels
     });
 
     const points = jobs.map(job => ({
@@ -651,15 +651,21 @@ export function JobMap({
                 latitude={latitude}
                 onClick={(e) => {
                   e.originalEvent.stopPropagation();
-                  const expansionZoom = Math.min(
-                    supercluster.getClusterExpansionZoom(cluster.id as number),
-                    18
-                  );
-                  mapRef.current?.flyTo({
-                    center: [longitude, latitude],
-                    zoom: expansionZoom,
-                    duration: 500
-                  });
+                  if (isSameCompany || currentZoom >= 16) {
+                    if (firstJob && onSelectJob) {
+                      onSelectJob(firstJob);
+                    }
+                  } else {
+                    const expansionZoom = Math.min(
+                      supercluster.getClusterExpansionZoom(cluster.id as number),
+                      18
+                    );
+                    mapRef.current?.flyTo({
+                      center: [longitude, latitude],
+                      zoom: expansionZoom,
+                      duration: 500
+                    });
+                  }
                 }}
                 style={{ zIndex: isHoveredCluster ? 100 : 20 }}
               >

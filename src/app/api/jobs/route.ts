@@ -156,18 +156,15 @@ function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: num
 }
 
 function resolveJobCoordinates(item: RawArbeitsagenturJob, searchLat: number, searchLon: number, idx: number): [number, number] {
-  // Golden ratio angle distribution for optimal non-overlapping spiral
   const goldenAngle = 2.39996;
 
-  // 1. If explicit coordinates are provided by Arbeitsagentur API
+  // 1. If explicit coordinates are provided by Arbeitsagentur API (exact store/building coordinates)
   if (item.arbeitsort?.koordinaten?.lat && item.arbeitsort?.koordinaten?.lon) {
     const latNum = Number(item.arbeitsort.koordinaten.lat);
     const lonNum = Number(item.arbeitsort.koordinaten.lon);
     // Ensure valid coordinates within Germany / DACH region
     if (!isNaN(latNum) && !isNaN(lonNum) && latNum > 45 && latNum < 56 && lonNum > 5 && lonNum < 16) {
-      const angle = idx * goldenAngle;
-      const r = 0.0003 + (idx % 8) * 0.0002; // Micro-dispersion
-      return [latNum + r * Math.sin(angle), lonNum + r * Math.cos(angle) * 1.3];
+      return [latNum, lonNum]; // Exact store/building location without artificial offset!
     }
   }
 
