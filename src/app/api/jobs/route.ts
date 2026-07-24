@@ -123,10 +123,11 @@ function resolveJobCoordinates(item: RawArbeitsagenturJob, searchLat: number, se
   if (item.arbeitsort?.koordinaten?.lat && item.arbeitsort?.koordinaten?.lon) {
     const latNum = Number(item.arbeitsort.koordinaten.lat);
     const lonNum = Number(item.arbeitsort.koordinaten.lon);
-    if (!isNaN(latNum) && !isNaN(lonNum) && latNum > 45 && lonNum > 5) {
+    // Ensure valid coordinates within Germany / DACH region
+    if (!isNaN(latNum) && !isNaN(lonNum) && latNum > 45 && latNum < 56 && lonNum > 5 && lonNum < 16) {
       const angle = idx * goldenAngle;
-      const r = 0.0004 + (idx % 10) * 0.0003; // ~40-300m radial spiral spread to prevent stacking
-      return [latNum + r * Math.cos(angle) * 1.3, latNum + r * Math.sin(angle)];
+      const r = 0.0003 + (idx % 8) * 0.0002; // Micro-dispersion
+      return [latNum + r * Math.sin(angle), lonNum + r * Math.cos(angle) * 1.3];
     }
   }
 
@@ -135,7 +136,7 @@ function resolveJobCoordinates(item: RawArbeitsagenturJob, searchLat: number, se
   for (const [cityName, coords] of Object.entries(GERMAN_CITY_COORDS)) {
     if (city.includes(cityName)) {
       const angle = idx * goldenAngle;
-      const r = 0.0015 + (Math.sqrt(idx + 1) * 0.0012); // Clean 150m-800m city spread
+      const r = 0.0015 + (Math.sqrt(idx + 1) * 0.0012);
       return [coords[0] + r * Math.sin(angle), coords[1] + r * Math.cos(angle) * 1.3];
     }
   }

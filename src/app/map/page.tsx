@@ -94,20 +94,18 @@ function MapViewContent() {
   const [activeMobileTab, setActiveMobileTab] = useState<'map' | 'list'>('map');
 
   const handleSearchThisArea = async (lat: number, lng: number) => {
-    setIsLocating(true);
     setLoadingJobs(true);
     try {
-      const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-      const geoRes = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${token}`);
-      const geoData = await geoRes.json();
-      const address = geoData.features?.[0]?.place_name || `Kartenbereich (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
-      
-      setUserLocation({ latitude: lat, longitude: lng, address });
-      setSearchQuery(address);
+      // Ensure userLocation is set if not already present
+      if (!userLocation) {
+        setUserLocation({ latitude: lat, longitude: lng, address: "Gewählter Standort" });
+      }
+
+      const searchOrigin = userLocation || { latitude: lat, longitude: lng };
 
       const params = new URLSearchParams({
-        lat: lat.toString(),
-        lon: lng.toString(),
+        lat: searchOrigin.latitude.toString(),
+        lon: searchOrigin.longitude.toString(),
         radius: distance.toString(),
         query: keywordQuery,
         jobType: jobType
@@ -122,7 +120,6 @@ function MapViewContent() {
     } catch (err) {
       console.error("Area search error", err);
     }
-    setIsLocating(false);
     setLoadingJobs(false);
   };
 
