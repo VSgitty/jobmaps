@@ -169,30 +169,35 @@ export function JobMap({
 
   // Fly to selected job CLOSE-UP (zoom 16.5 - street level detail)
   useEffect(() => {
-    if (selectedJob) {
-      setViewState(prev => ({
-        ...prev,
-        longitude: selectedJob.longitude,
-        latitude: selectedJob.latitude,
+    if (selectedJob && mapRef.current) {
+      mapRef.current.flyTo({
+        center: [selectedJob.longitude, selectedJob.latitude],
         zoom: 16.5,
         pitch: 60, // Deep 3D tilt when looking at a specific job
-      }));
+        duration: 1200
+      });
     }
   }, [selectedJob]);
 
   // Make Mapbox POIs / Shops semi-transparent on style load
   const handleMapLoad = () => {
     if (!mapRef.current) return;
-    const map = mapRef.current.getMap();
+    const map = mapRef.current?.getMap();
     try {
-      setBounds(map.getBounds().toArray().flat() as [number, number, number, number]);
-      if (map.getLayer('poi-label')) {
-        map.setPaintProperty('poi-label', 'icon-opacity', 0.45);
-        map.setPaintProperty('poi-label', 'text-opacity', 0.45);
-      }
-      if (map.getLayer('transit-label')) {
-        map.setPaintProperty('transit-label', 'icon-opacity', 0.5);
-        map.setPaintProperty('transit-label', 'text-opacity', 0.5);
+      if (map && typeof map.getBounds === 'function') {
+        const bounds = map.getBounds();
+        if (bounds) {
+          const boundsArray = bounds.toArray().flat() as [number, number, number, number];
+          setBounds(boundsArray);
+        }
+        if (map.getLayer('poi-label')) {
+          map.setPaintProperty('poi-label', 'icon-opacity', 0.45);
+          map.setPaintProperty('poi-label', 'text-opacity', 0.45);
+        }
+        if (map.getLayer('transit-label')) {
+          map.setPaintProperty('transit-label', 'icon-opacity', 0.5);
+          map.setPaintProperty('transit-label', 'text-opacity', 0.5);
+        }
       }
     } catch (e) {
       console.warn("Could not set POI layer opacity:", e);
@@ -251,7 +256,17 @@ export function JobMap({
         initialViewState={mapInitialViewState}
         onMove={(evt) => {
           setCurrentZoom(evt.viewState.zoom);
-          setBounds(evt.target.getBounds().toArray().flat() as [number, number, number, number]);
+          if (evt.target && typeof evt.target.getBounds === 'function') {
+            try {
+              const bounds = evt.target.getBounds();
+              if (bounds) {
+                const boundsArray = bounds.toArray().flat() as [number, number, number, number];
+                setBounds(boundsArray);
+              }
+            } catch (e) {
+              console.warn("Could not get bounds:", e);
+            }
+          }
         }}
         mapStyle={MAP_STYLES[mapStyleKey]}
         mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
@@ -452,7 +467,7 @@ export function JobMap({
                 {/* Info Tooltip on Hover */}
                 {isHovered && !isSelected && (
                   <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-card/95 backdrop-blur-md border border-border px-3 py-2 rounded-xl shadow-2xl whitespace-nowrap z-50 animate-in fade-in slide-in-from-bottom-2 pointer-events-none min-w-[180px]">
-                    <div className="text-[10px] font-bold text-primary uppercase tracking-tighter mb-0.5">{category.label}</div>
+                    <div className="text-[10px] font-bold text-primary uppercase tracking-tighter mb-0.5">{category.name}</div>
                     <div className="text-xs font-extrabold text-foreground leading-tight truncate">{job.title}</div>
                     <div className="text-[10px] text-foreground/70 font-medium">{job.company_name}</div>
                   </div>

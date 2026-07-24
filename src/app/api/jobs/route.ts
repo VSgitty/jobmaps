@@ -23,6 +23,35 @@ interface RawArbeitsagenturJob {
   eintrittsdatum?: string;
 }
 
+interface Job {
+  id: string;
+  title: string;
+  company_name: string;
+  location_name: string;
+  latitude: number;
+  longitude: number;
+  exact_distance?: number;
+  distance?: number;
+  distance_text?: string;
+  type?: string;
+  redirect_url?: string;
+  published_date?: string;
+  beruf?: string;
+  rating?: string;
+  company_size?: string;
+  industry?: string;
+  description?: string;
+  images?: string[];
+  requirements?: string[];
+  responsibilities?: string[];
+  benefits?: string[];
+  routes?: {
+    driving?: string;
+    cycling?: string;
+    walking?: string;
+  };
+}
+
 function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371; // Earth's radius in km
   const dLat = (lat2 - lat1) * (Math.PI / 180);
@@ -245,11 +274,15 @@ export async function GET(request: Request) {
         // Filter by jobType if specified
         let filteredJobs = jobs;
         if (jobType && jobType !== 'Alle') {
-          filteredJobs = jobs.filter(j => j.type.toLowerCase().includes(jobType.toLowerCase()));
+          filteredJobs = jobs.filter(j => (j.type as string).toLowerCase().includes(jobType.toLowerCase()));
         }
 
         // Sort strictly by exact distance ascending (nearest jobs first)
-        filteredJobs.sort((a, b) => (a.exact_distance || 0) - (b.exact_distance || 0));
+        filteredJobs.sort((a, b) => {
+          const aDist = typeof a.exact_distance === 'number' ? a.exact_distance : 0;
+          const bDist = typeof b.exact_distance === 'number' ? b.exact_distance : 0;
+          return aDist - bDist;
+        });
 
         return NextResponse.json({ 
           jobs: filteredJobs, 

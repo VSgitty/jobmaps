@@ -331,14 +331,14 @@ function MapViewContent() {
                   {suggestions.length > 0 ? (
                     <div className="p-2 space-y-1">
                       <div className="text-[10px] font-bold text-secondary uppercase px-2 py-1">Vorschläge</div>
-                      {suggestions.map((feat) => (
+                      {suggestions.map((feat: any) => (
                         <button
                           key={feat.id}
                           className="w-full text-left px-3 py-2 text-xs text-text hover:bg-surface rounded-lg transition-colors flex items-center gap-2 group"
                           onClick={() => handleSelectSuggestion(feat)}
                         >
                           <MapPin className="w-3 h-3 text-primary" />
-                          <span className="truncate">{feat.place_name}</span>
+                          <span className="truncate">{feat.place_name as string}</span>
                         </button>
                       ))}
                     </div>

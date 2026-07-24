@@ -157,7 +157,7 @@ export default function Home() {
                 <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
                   <div className="p-2 space-y-1">
                     <div className="text-[10px] font-bold text-white/40 uppercase px-2 py-1">Vorschläge</div>
-                    {suggestions.map((feat) => (
+                    {suggestions.map((feat: any) => (
                       <button
                         key={feat.id}
                         type="button"
@@ -165,7 +165,7 @@ export default function Home() {
                         onClick={() => handleSelectSuggestion(feat)}
                       >
                         <MapPin className="w-4 h-4 text-emerald-400 shrink-0" />
-                        <span className="truncate">{feat.place_name}</span>
+                        <span className="truncate">{feat.place_name as string}</span>
                       </button>
                     ))}
                   </div>
