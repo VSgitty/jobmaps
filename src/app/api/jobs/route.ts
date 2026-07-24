@@ -35,44 +35,6 @@ function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: num
   return R * c;
 }
 
-// Fallback mock job generator in case real API call fails or is out of region
-function generateFallbackJobs(lat: number, lon: number, radiusKm: number, count: number = 20) {
-  const JOB_TITLES = ["Software Engineer", "Mechatroniker", "Marketing Manager", "Projektleiter", "Data Analyst", "Buchhalter", "Pflegefachkraft", "Verkäufer", "Elektroniker"];
-  const COMPANY_NAMES = ["SIEMENS", "Deutsche Bahn", "Lufthansa", "Allianz", "BMW", "SAP", "Bosch", "Telekom", "Aldi", "Edeka"];
-
-  const jobs = [];
-  for (let i = 0; i < count; i++) {
-    const radiusInDegrees = radiusKm / 111.12;
-    const randomRadius = Math.random() * radiusInDegrees;
-    const randomAngle = Math.random() * 2 * Math.PI;
-    const jobLat = lat + randomRadius * Math.cos(randomAngle);
-    const jobLon = lon + randomRadius * Math.sin(randomAngle);
-
-    const distance = calculateDistanceKm(lat, lon, jobLat, jobLon);
-
-    jobs.push({
-      id: `fallback-${i}`,
-      title: JOB_TITLES[Math.floor(Math.random() * JOB_TITLES.length)],
-      company_name: COMPANY_NAMES[Math.floor(Math.random() * COMPANY_NAMES.length)],
-      location_name: "In der Nähe",
-      latitude: jobLat,
-      longitude: jobLon,
-      distance: Math.round(distance * 10) / 10,
-      type: Math.random() > 0.3 ? "Vollzeit" : "Teilzeit",
-      salary_min: Math.floor(Math.random() * 20 + 30) + ".000 €",
-      salary_max: Math.floor(Math.random() * 30 + 50) + ".000 €",
-      redirect_url: "https://www.arbeitsagentur.de/jobsuche/",
-      published_date: new Date().toISOString().split('T')[0],
-      routes: {
-        driving: Math.max(1, Math.round((distance / 50) * 60)) + " Min",
-        cycling: Math.max(1, Math.round((distance / 15) * 60)) + " Min",
-        walking: Math.max(1, Math.round((distance / 5) * 60)) + " Min"
-      }
-    });
-  }
-  return jobs.sort((a, b) => a.distance - b.distance);
-}
-
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const lat = parseFloat(searchParams.get('lat') || '50.1109');
@@ -139,26 +101,22 @@ export async function GET(request: Request) {
           let jobLat = item.arbeitsort?.koordinaten?.lat;
           let jobLon = item.arbeitsort?.koordinaten?.lon;
 
-          // If coordinates are missing, place within radius of user location
+          // STRICT DATA INTEGRITY: Drop jobs without explicit coordinates.
+          // No more random scattering into forests or unrelated areas.
           if (!jobLat || !jobLon) {
-            // Use a stable random based on refnr to keep markers from jumping
-            const seed = item.refnr ? parseInt(item.refnr.replace(/\D/g, '').slice(-5)) : idx;
-            const rInDeg = (radius / 2) / 111.12;
-            const angle = (seed % 360) * (Math.PI / 180);
-            const r = ((seed % 100) / 100) * rInDeg;
-            jobLat = lat + r * Math.cos(angle);
-            jobLon = lon + r * Math.sin(angle);
-          } else {
-            // Apply slight radial dispersion so overlapping company jobs spread out nicely
-            const angle = (idx * 0.8) + (Math.random() * 0.4);
-            const r = 0.0003 + (idx % 4) * 0.0002; // ~30m to 80m spread
-            jobLat += r * Math.cos(angle);
-            jobLon += r * Math.sin(angle);
+            return null;
           }
+
+          // Apply micro-dispersion (max 10-30 meters) ONLY to prevent markers
+          // at the exact same building/address from perfectly overlapping.
+          const angle = (idx * 0.8) + (Math.random() * 0.4);
+          const r = 0.0001 + (idx % 3) * 0.0001; // Tiny offset
+          jobLat += r * Math.cos(angle);
+          jobLon += r * Math.sin(angle);
 
           const exactDist = calculateDistanceKm(lat, lon, jobLat, jobLon);
           // Only include if within user's requested radius + 10% buffer for border cases
-          if (exactDist > radius * 1.1) return null;
+          if (!isNationwide && exactDist > radius * 1.1) return null;
           const distKm = Math.round(exactDist * 100) / 100;
           const distText = exactDist < 1 ? `${Math.max(10, Math.round(exactDist * 1000))} m` : `${(Math.round(exactDist * 10) / 10).toFixed(1)} km`;
 
@@ -305,7 +263,7 @@ export async function GET(request: Request) {
     console.error('Error fetching real jobs from Arbeitsagentur API:', err);
   }
 
-  // Fallback to mock jobs if API request failed or returned 0 results
-  const fallback = generateFallbackJobs(lat, lon, radius, 30);
-  return NextResponse.json({ jobs: fallback, source: 'Generated', total: fallback.length });
+  // Always return an empty array if API fails or yields no valid results.
+  // NO MORE GENERATED FAKE JOBS.
+  return NextResponse.json({ jobs: [], source: 'Empty', total: 0, count: 0 });
 }

@@ -12,6 +12,8 @@ export default function Home() {
   const router = useRouter();
   const [isGoLocating, setIsGoLocating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
 
   // Animated counters state
   const [counts, setCounts] = useState({ jobs: 0, companies: 0, applicants: 0 });
@@ -27,6 +29,33 @@ export default function Home() {
     }, 20);
     return () => clearInterval(interval);
   }, []);
+
+  // Fetch suggestions as user types
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      if (searchQuery.length < 2) {
+        setSuggestions([]);
+        return;
+      }
+      try {
+        const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+        const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchQuery)}.json?country=DE,AT,CH&types=place,address,postcode&access_token=${token}`);
+        const data = await res.json();
+        setSuggestions(data.features || []);
+      } catch (e) {
+        console.error("Error fetching suggestions", e);
+      }
+    };
+
+    const timeoutId = setTimeout(fetchSuggestions, 300);
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+
+  const handleSelectSuggestion = (feat: any) => {
+    const [longitude, latitude] = feat.center;
+    const address = feat.place_name;
+    router.push(`/map?lat=${latitude}&lon=${longitude}&q=${encodeURIComponent(address)}`);
+  };
 
   const handleSearch = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -64,11 +93,24 @@ export default function Home() {
       <section className="relative h-[90vh] min-h-[700px] flex items-center pt-16">
         {/* Background Map & Gradient Overlay */}
         <div className="absolute inset-0 z-0 overflow-hidden">
-          <div className="absolute inset-0 scale-105 pointer-events-none blur-[2px] opacity-40">
-            <JobMap interactive={false} />
+          <div className="absolute inset-0 scale-105 pointer-events-none opacity-50 mix-blend-luminosity">
+            <JobMap 
+              interactive={false} 
+              userLocation={{ latitude: 50.1109, longitude: 8.6821, address: 'Frankfurt am Main' }}
+              selectedJob={{
+                id: 'demo-1',
+                latitude: 50.12,
+                longitude: 8.67,
+                title: 'Software Engineer',
+                company_name: 'Tech Corp',
+                location_name: 'Frankfurt'
+              }}
+              routeMode="driving"
+              radiusKm={15}
+            />
           </div>
-          <div className="absolute inset-0 bg-gradient-to-b from-background via-background/90 to-background" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-b from-background via-background/80 to-background" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-transparent to-transparent" />
         </div>
 
         <div className="relative z-10 w-full max-w-[1400px] mx-auto px-6 sm:px-12 flex flex-col lg:flex-row items-center gap-16">
@@ -91,21 +133,45 @@ export default function Home() {
             </p>
 
             {/* Smart Search Bar */}
-            <form onSubmit={handleSearch} className="w-full max-w-2xl bg-surface/50 backdrop-blur-xl border border-white/10 rounded-2xl p-2.5 flex flex-col sm:flex-row items-center gap-3 shadow-2xl mb-8 transition-all hover:bg-surface/80 hover:border-white/20 focus-within:bg-surface focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10">
-              <div className="flex-1 flex items-center px-4 w-full">
-                <Search className="w-5 h-5 text-white/40 mr-3 shrink-0" />
-                <input 
-                  type="text" 
-                  placeholder="Job, Stadt, Firma oder Branche eingeben..." 
-                  className="w-full bg-transparent border-none outline-none text-white placeholder:text-white/40 font-medium text-base"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <Button type="submit" className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-white rounded-xl px-8 py-6 text-base font-bold shadow-lg transition-transform active:scale-95">
-                Jobs finden
-              </Button>
-            </form>
+            <div className="w-full max-w-2xl mb-8 relative">
+              <form onSubmit={handleSearch} className="w-full bg-surface/50 backdrop-blur-xl border border-white/10 rounded-2xl p-2.5 flex flex-col sm:flex-row items-center gap-3 shadow-2xl transition-all hover:bg-surface/80 hover:border-white/20 focus-within:bg-surface focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10">
+                <div className="flex-1 flex items-center px-4 w-full relative">
+                  <Search className="w-5 h-5 text-white/40 mr-3 shrink-0" />
+                  <input 
+                    type="text" 
+                    placeholder="Job, Stadt, Firma oder Branche eingeben..." 
+                    className="w-full bg-transparent border-none outline-none text-white placeholder:text-white/40 font-medium text-base"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={() => setShowDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+                  />
+                </div>
+                <Button type="submit" className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-white rounded-xl px-8 py-6 text-base font-bold shadow-lg transition-transform active:scale-95">
+                  Jobs finden
+                </Button>
+              </form>
+
+              {/* Autocomplete Dropdown */}
+              {showDropdown && suggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                  <div className="p-2 space-y-1">
+                    <div className="text-[10px] font-bold text-white/40 uppercase px-2 py-1">Vorschläge</div>
+                    {suggestions.map((feat) => (
+                      <button
+                        key={feat.id}
+                        type="button"
+                        className="w-full text-left px-3 py-3 text-sm text-white/90 hover:bg-white/5 rounded-lg transition-colors flex items-center gap-3 group"
+                        onClick={() => handleSelectSuggestion(feat)}
+                      >
+                        <MapPin className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span className="truncate">{feat.place_name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div className="flex items-center gap-4 text-sm text-white/50 font-medium">
               <span>Oder direkt loslegen:</span>
