@@ -126,6 +126,36 @@ function MapViewContent() {
   const [routeMode, setRouteMode] = useState<RouteMode>('driving');
   const [viewMode, setViewMode] = useState<'jobs' | 'employers'>('jobs');
   const [activeMobileTab, setActiveMobileTab] = useState<'map' | 'list'>('map');
+  const [showAlertModal, setShowAlertModal] = useState(false);
+  const [alertEmail, setAlertEmail] = useState('');
+  const [alertSavedSuccess, setAlertSavedSuccess] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const handleSaveProfileAndAlert = (e: React.FormEvent) => {
+    e.preventDefault();
+    const profile = {
+      address: userLocation?.address || 'Frankfurt am Main',
+      lat: userLocation?.latitude,
+      lon: userLocation?.longitude,
+      maxCommuteMins,
+      routeMode,
+      keywordQuery,
+      homeofficeFilter,
+      jobType,
+      email: alertEmail,
+      savedAt: new Date().toISOString()
+    };
+    localStorage.setItem('nearjobs_saved_profile', JSON.stringify(profile));
+    setAlertSavedSuccess(true);
+    setTimeout(() => setAlertSavedSuccess(false), 4000);
+  };
+
+  const handleCopyShareLink = () => {
+    const url = `${window.location.origin}/map?q=${encodeURIComponent(userLocation?.address || '')}&commute=${maxCommuteMins}&mode=${routeMode}&query=${encodeURIComponent(keywordQuery)}`;
+    navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2500);
+  };
 
   // Computed filtered jobs based on Max Commute & Homeoffice
   const filteredJobs = useMemo(() => {
@@ -602,6 +632,15 @@ function MapViewContent() {
                       </div>
                       <div className="text-slate-400 font-medium">Homeoffice</div>
                     </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-blue-500/20 flex items-center justify-between">
+                    <button
+                      onClick={() => setShowAlertModal(true)}
+                      className="w-full bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500/40 text-blue-200 py-1.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+                    >
+                      <span>💾 Arbeitsmarkt speichern & Job-Alerts</span>
+                    </button>
                   </div>
                 </div>
 
@@ -1284,7 +1323,7 @@ function MapViewContent() {
             initialViewState={{ zoom: 11 }} 
             userLocation={userLocation}
             radiusKm={distance}
-            jobs={jobs}
+            jobs={filteredJobs}
             selectedJob={selectedJob}
             onSelectJob={setSelectedJob}
             hoveredJobId={hoveredJobId}
@@ -1292,8 +1331,115 @@ function MapViewContent() {
             routeMode={routeMode}
             onSearchThisArea={handleSearchThisArea}
           />
+
+          {/* Floating Mobile Bottom Sheet Bar */}
+          <div className="lg:hidden absolute bottom-4 left-4 right-4 z-40 bg-slate-900/95 border border-slate-700/80 rounded-2xl p-3 shadow-2xl backdrop-blur-xl space-y-2 animate-in slide-in-from-bottom-3">
+            {selectedJob ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                    🎯 {selectedJob.fit_score || 95}% Match
+                  </span>
+                  <button onClick={() => setSelectedJob(null)} className="text-xs text-slate-400 font-bold p-1 cursor-pointer">
+                    Schließen ✕
+                  </button>
+                </div>
+                <div className="font-extrabold text-white text-xs truncate">{selectedJob.title}</div>
+                <div className="text-[11px] text-slate-300 flex items-center justify-between">
+                  <span className="truncate max-w-[180px]">{selectedJob.company_name}</span>
+                  <span className="font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">
+                    🚗 {selectedJob.commute_times?.[routeMode] || 15} Min ({selectedJob.distance_text})
+                  </span>
+                </div>
+                <Button 
+                  onClick={() => setActiveMobileTab('list')}
+                  className="w-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 rounded-xl shadow-md cursor-pointer"
+                >
+                  Vollständiges Profil öffnen
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-xs">
+                    📍
+                  </div>
+                  <div>
+                    <div className="text-xs font-extrabold text-white">{filteredJobs.length} Jobs in deiner Nähe</div>
+                    <div className="text-[10px] text-slate-400">≤ {maxCommuteMins} Min. Pendelzeit</div>
+                  </div>
+                </div>
+                <Button 
+                  onClick={() => setActiveMobileTab('list')}
+                  className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md cursor-pointer shrink-0"
+                >
+                  Liste anzeigen 📋
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Mein Job-Radius Speicher- & Alert Modal */}
+      {showAlertModal && (
+        <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5 relative">
+            <button
+              onClick={() => setShowAlertModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold">
+                <Compass className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-white">Deinen Arbeitsmarkt speichern</h3>
+                <p className="text-xs text-slate-400">Erhalte automatische Alerts, wenn neue Stellen in deinem Radius entstehen.</p>
+              </div>
+            </div>
+
+            <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2 text-xs">
+              <div className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Aktuelle Konfiguration:</div>
+              <div className="flex flex-wrap gap-2 text-slate-200 font-semibold">
+                <span className="bg-blue-500/20 border border-blue-500/30 text-blue-300 px-2.5 py-1 rounded-lg">📍 {userLocation?.address?.split(',')[0] || 'Frankfurt'}</span>
+                <span className="bg-purple-500/20 border border-purple-500/30 text-purple-300 px-2.5 py-1 rounded-lg">⏱️ Max. {maxCommuteMins} Min. ({routeMode})</span>
+                {keywordQuery && <span className="bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 px-2.5 py-1 rounded-lg">🔎 {keywordQuery}</span>}
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveProfileAndAlert} className="space-y-3">
+              <label className="text-xs font-bold text-slate-300">E-Mail für Benachrichtigungen (optional):</label>
+              <input
+                type="email"
+                placeholder="deine.email@beispiel.de"
+                value={alertEmail}
+                onChange={(e) => setAlertEmail(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-500 outline-none focus:border-blue-500"
+              />
+
+              <div className="flex gap-2 pt-2">
+                <Button
+                  type="submit"
+                  className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 text-xs rounded-xl shadow-lg cursor-pointer"
+                >
+                  {alertSavedSuccess ? '✓ Erster Alert gespeichert!' : 'Speichern & Alert aktivieren'}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleCopyShareLink}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-3 px-4 text-xs rounded-xl cursor-pointer"
+                >
+                  {copiedLink ? '✓ Link kopiert!' : '🔗 Link teilen'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
