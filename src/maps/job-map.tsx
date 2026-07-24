@@ -54,6 +54,7 @@ interface JobMapProps {
   routeMode?: RouteMode;
   showDemoShowcase?: boolean;
   activeDemoMode?: RouteMode;
+  onSearchThisArea?: (lat: number, lng: number) => void;
 }
 
 export function JobMap({ 
@@ -68,7 +69,8 @@ export function JobMap({
   onHoverJob,
   routeMode = 'driving',
   showDemoShowcase = false,
-  activeDemoMode
+  activeDemoMode,
+  onSearchThisArea
 }: JobMapProps) {
   const mapRef = useRef<MapRef | null>(null);
   const [routeData, setRouteData] = useState<GeoJSON.Geometry | null>(null);
@@ -298,10 +300,10 @@ export function JobMap({
 
   const demoHomeCoord: [number, number] = useMemo(() => [8.6720, 50.1180], []);
   const demoTargets = useMemo(() => [
-    { mode: 'driving', name: 'Tech Corp', icon: Car, color: '#3b82f6', target: [8.6530, 50.1290] as [number, number], label: '12 Min • Auto (A66)' },
-    { mode: 'transit', name: 'REWE Markt', icon: Bus, color: '#a855f7', target: [8.6940, 50.1060] as [number, number], label: '18 Min • ÖPNV (S1/S2)' },
-    { mode: 'cycling', name: 'Bosch Tech', icon: Bike, color: '#f59e0b', target: [8.6510, 50.1120] as [number, number], label: '24 Min • Fahrrad (Radweg)' },
-    { mode: 'walking', name: 'Allianz AG', icon: Navigation, color: '#10b981', target: [8.6790, 50.1130] as [number, number], label: '35 Min • Zu Fuß (1,9 km)' },
+    { mode: 'driving', name: 'Tech Corp (Siemens)', icon: Car, color: '#3b82f6', target: [8.6250, 50.1450] as [number, number], label: '12 Min • Auto (A66)' },
+    { mode: 'transit', name: 'REWE Logistik', icon: Bus, color: '#a855f7', target: [8.7220, 50.1280] as [number, number], label: '18 Min • ÖPNV (S1/S2)' },
+    { mode: 'cycling', name: 'Bosch Center', icon: Bike, color: '#f59e0b', target: [8.6320, 50.0890] as [number, number], label: '24 Min • Fahrrad (Radweg)' },
+    { mode: 'walking', name: 'Allianz AG', icon: Navigation, color: '#10b981', target: [8.6920, 50.1150] as [number, number], label: '35 Min • Zu Fuß (1,9 km)' },
   ], []);
 
   return (
@@ -337,6 +339,24 @@ export function JobMap({
         onLoad={handleMapLoad}
       >
         {interactive && <NavigationControl position="bottom-right" />}
+
+        {/* Floating Area Live-Search Button (Punkt 3) */}
+        {interactive && onSearchThisArea && (
+          <div className="absolute top-4 left-4 z-20">
+            <button
+              onClick={() => {
+                if (mapRef.current) {
+                  const center = mapRef.current.getCenter();
+                  onSearchThisArea(center.lat, center.lng);
+                }
+              }}
+              className="bg-slate-900/90 backdrop-blur-md text-white px-4 py-2 rounded-xl shadow-2xl text-xs font-black flex items-center gap-2 transition-all hover:scale-105 border border-blue-500/40 hover:border-blue-400 active:scale-95 cursor-pointer group"
+            >
+              <Navigation className="w-4 h-4 text-blue-400 group-hover:animate-spin" />
+              <span>🎯 In diesem Ausschnitt suchen</span>
+            </button>
+          </div>
+        )}
 
         {/* Map Style Selector Button */}
         {interactive && (
@@ -719,12 +739,42 @@ export function JobMap({
                   )}
                 </div>
 
-                {/* Info Tooltip on Hover */}
+                {/* High-Impact Glassmorphic Tooltip Card on Map Pin Hover (Punkt 2) */}
                 {isHovered && !isSelected && (
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-card/95 backdrop-blur-md border border-border px-3 py-2 rounded-xl shadow-2xl whitespace-nowrap z-50 animate-in fade-in slide-in-from-bottom-2 pointer-events-none min-w-[180px]">
-                    <div className="text-[10px] font-bold text-primary uppercase tracking-tighter mb-0.5">{category.name}</div>
-                    <div className="text-xs font-extrabold text-foreground leading-tight truncate">{job.title}</div>
-                    <div className="text-[10px] text-foreground/70 font-medium">{job.company_name}</div>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-slate-900/95 backdrop-blur-2xl border-2 border-blue-500/60 p-3.5 rounded-2xl shadow-2xl z-[200] animate-in fade-in slide-in-from-bottom-2 pointer-events-none w-64 space-y-2">
+                    {/* Category Pill + Rating */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md text-white flex items-center gap-1 shadow-sm" style={{ backgroundColor: category.color }}>
+                        <IconComp className="w-3 h-3 text-white" />
+                        {category.name}
+                      </span>
+                      {job.rating && (
+                        <span className="text-[10px] text-amber-400 font-extrabold bg-amber-500/15 px-1.5 py-0.5 rounded border border-amber-500/20">
+                          ⭐ {job.rating}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Title & Company */}
+                    <div>
+                      <div className="text-xs font-black text-white leading-snug line-clamp-2">{job.title}</div>
+                      <div className="text-[11px] text-blue-300 font-bold truncate mt-0.5">{job.company_name}</div>
+                    </div>
+
+                    {/* Distance & Travel Time + Type */}
+                    <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-[10px]">
+                      <span className="font-extrabold text-slate-300 flex items-center gap-1">
+                        <Car className="w-3 h-3 text-blue-400" />
+                        {job.distance_text || `${(job.exact_distance ?? job.distance ?? 1).toFixed(1)} km`}
+                      </span>
+                      <span className="font-extrabold text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded border border-emerald-500/20">
+                        {job.type || "Vollzeit"}
+                      </span>
+                    </div>
+
+                    <div className="text-[10px] font-extrabold text-center text-blue-400 bg-blue-500/10 py-1 rounded-lg border border-blue-500/20 shadow-inner">
+                      Bewerben & Details →
+                    </div>
                   </div>
                 )}
               </div>

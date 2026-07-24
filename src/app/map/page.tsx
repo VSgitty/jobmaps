@@ -1,7 +1,7 @@
 'use client';
 
 import { JobMap } from '@/maps/job-map';
-import { Search, MapPin, Navigation, Car, Bike, Train, ChevronLeft, ExternalLink, Briefcase, Filter, CheckCircle2, Building2, Users, Award, Sparkles, Clock, X, Image as ImageIcon, User } from 'lucide-react';
+import { Search, MapPin, Navigation, Car, Bike, Train, ChevronLeft, ExternalLink, Briefcase, Filter, CheckCircle2, Building2, Users, Award, Sparkles, Clock, X, Image as ImageIcon, User, Compass } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useState, useEffect, useCallback, Suspense } from 'react';
@@ -91,6 +91,40 @@ function MapViewContent() {
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [routeMode, setRouteMode] = useState<RouteMode>('driving');
   const [employerMode, setEmployerMode] = useState<'active' | 'all'>('active');
+  const [activeMobileTab, setActiveMobileTab] = useState<'map' | 'list'>('map');
+
+  const handleSearchThisArea = async (lat: number, lng: number) => {
+    setIsLocating(true);
+    setLoadingJobs(true);
+    try {
+      const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+      const geoRes = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${token}`);
+      const geoData = await geoRes.json();
+      const address = geoData.features?.[0]?.place_name || `Kartenbereich (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
+      
+      setUserLocation({ latitude: lat, longitude: lng, address });
+      setSearchQuery(address);
+
+      const params = new URLSearchParams({
+        lat: lat.toString(),
+        lon: lng.toString(),
+        radius: distance.toString(),
+        query: keywordQuery,
+        jobType: jobType
+      });
+      const res = await fetch(`/api/jobs?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        const raw = data.jobs || [];
+        raw.sort((a: Job, b: Job) => (a.exact_distance ?? a.distance ?? 0) - (b.exact_distance ?? b.distance ?? 0));
+        setJobs(raw);
+      }
+    } catch (err) {
+      console.error("Area search error", err);
+    }
+    setIsLocating(false);
+    setLoadingJobs(false);
+  };
 
   // Load search history on mount
   useEffect(() => {
@@ -419,9 +453,25 @@ function MapViewContent() {
         </div>
       </header>
 
+      {/* Mobile Top Navigation Switcher Bar (Punkt 4) */}
+      <div className="lg:hidden flex items-center justify-between p-2 bg-card border-b border-border z-50 shrink-0 gap-2">
+        <button 
+          onClick={() => setActiveMobileTab('map')}
+          className={`flex-1 py-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer ${activeMobileTab === 'map' ? 'bg-primary text-white shadow-md' : 'text-secondary hover:text-text hover:bg-surface'}`}
+        >
+          <Compass className="w-4 h-4" /> 🗺️ Karte
+        </button>
+        <button 
+          onClick={() => setActiveMobileTab('list')}
+          className={`flex-1 py-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer ${activeMobileTab === 'list' ? 'bg-primary text-white shadow-md' : 'text-secondary hover:text-text hover:bg-surface'}`}
+        >
+          <Briefcase className="w-4 h-4" /> 📋 Liste ({jobs.length})
+        </button>
+      </div>
+
       <div className="flex flex-1 overflow-hidden relative">
         {/* Left Sidebar - Filters & List (Spacious & Modern) */}
-        <aside className="w-[560px] xl:w-[620px] max-w-[50vw] h-full bg-card border-r border-border flex flex-col z-20 shadow-2xl shrink-0">
+        <aside className={`w-full lg:w-[560px] xl:w-[620px] lg:max-w-[50vw] h-full bg-card border-r border-border flex flex-col z-20 shadow-2xl shrink-0 ${activeMobileTab === 'list' ? 'flex w-full' : 'hidden lg:flex'}`}>
           {!selectedJob ? (
             <>
               {/* Filters Header */}
@@ -956,7 +1006,7 @@ function MapViewContent() {
         </aside>
 
         {/* Map Area */}
-        <div className="flex-1 relative">
+        <div className={`flex-1 relative ${activeMobileTab === 'map' ? 'flex w-full h-full' : 'hidden lg:flex'}`}>
           {/* Top Center Map Filter Toggle */}
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-card/90 backdrop-blur-md border border-border p-1.5 rounded-2xl shadow-xl flex gap-1 animate-in fade-in slide-in-from-top-4">
             <button 
@@ -983,6 +1033,7 @@ function MapViewContent() {
             hoveredJobId={hoveredJobId}
             onHoverJob={setHoveredJobId}
             routeMode={routeMode}
+            onSearchThisArea={handleSearchThisArea}
           />
         </div>
       </div>
