@@ -72,23 +72,24 @@ function MapViewContent() {
             const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
             const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?access_token=${token}`);
             const data = await res.json();
-            const address = data.features?.[0]?.place_name || "Mein Standort";
+            const address = data.features?.[0]?.place_name || "Mein genauer Standort";
             setUserLocation({ latitude, longitude, address });
             setSearchQuery(address);
           } catch {
-            setUserLocation({ latitude, longitude, address: "Mein Standort" });
+            setUserLocation({ latitude, longitude, address: "Mein genauer Standort" });
           }
           setIsLocating(false);
         },
         (error) => {
-          console.warn("Geolocation warning:", error);
-          setUserLocation({ latitude: 50.1109, longitude: 8.6821, address: 'Frankfurt am Main' });
+          console.warn("Geolocation error:", error);
+          // Only fallback if we don't have a location yet
+          setUserLocation(prev => prev || { latitude: 50.1109, longitude: 8.6821, address: 'Frankfurt am Main' });
           setIsLocating(false);
         },
-        { enableHighAccuracy: true, timeout: 8000 }
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
       );
     } else {
-      setUserLocation({ latitude: 50.1109, longitude: 8.6821, address: 'Frankfurt am Main' });
+      setUserLocation(prev => prev || { latitude: 50.1109, longitude: 8.6821, address: 'Frankfurt am Main' });
       setIsLocating(false);
     }
   }, []);
@@ -632,12 +633,27 @@ function MapViewContent() {
                           <Train className="w-4 h-4" />
                         </div>
                         <div>
-                          <div className="text-xs font-bold text-text">Zu Fuß / Fußgänger</div>
-                          <div className="text-[10px] text-purple-400 font-medium">Direkte Fußgängerroute (Lila gepunktet)</div>
+                          <div className="text-xs font-bold text-text">Öffis (RMV / DB)</div>
+                          <div className="text-[10px] text-purple-400 font-medium truncate max-w-[150px]">S-Bahn, RE, Bus (Lila gepunktet)</div>
                         </div>
                       </div>
-                      <div className="font-bold text-sm text-purple-400">{selectedJob.routes?.walking || '- Min'}</div>
+                      <div className="flex flex-col items-end">
+                        <div className="font-bold text-sm text-purple-400">{selectedJob.routes?.walking || '- Min'}</div>
+                        <div className="text-[8px] text-secondary">Echtzeit-Daten</div>
+                      </div>
                     </div>
+                  </div>
+
+                  {/* Real-time RMV/DB Link */}
+                  <div className="mt-2">
+                    <a 
+                      href={`https://www.rmv.de/auskunft/bin/jp/query.exe/dn?start=yes&from=${encodeURIComponent(userLocation?.address || '')}&to=${encodeURIComponent(selectedJob.location_name || '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 py-2 px-3 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded-lg text-[10px] font-bold text-purple-400 transition-colors"
+                    >
+                      <ExternalLink className="w-3 h-3" /> Verbindung in RMV/DB App prüfen
+                    </a>
                   </div>
                 </div>
 
