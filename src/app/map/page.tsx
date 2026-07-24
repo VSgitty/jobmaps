@@ -1,7 +1,7 @@
 'use client';
 
 import { JobMap } from '@/maps/job-map';
-import { Search, MapPin, Navigation, Car, Bike, Train, ChevronLeft, ExternalLink, Briefcase, Filter, CheckCircle2, Building2, Users, Award, Sparkles, Clock, X, Image as ImageIcon } from 'lucide-react';
+import { Search, MapPin, Navigation, Car, Bike, Train, ChevronLeft, ExternalLink, Briefcase, Filter, CheckCircle2, Building2, Users, Award, Sparkles, Clock, X, Image as ImageIcon, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useState, useEffect, useCallback, Suspense } from 'react';
@@ -300,13 +300,13 @@ function MapViewContent() {
             <span className="text-white font-bold text-lg tracking-tight">Job Maps</span>
           </Link>
           
-          <div className="flex bg-surface rounded-md p-1 border border-border items-center gap-1 relative">
+          <div className="flex bg-surface rounded-md p-1 border border-border items-center gap-1 relative flex-1 max-w-sm">
             <Search className="w-4 h-4 text-secondary ml-2 shrink-0" />
-            <div className="relative flex-1">
+            <div className="relative flex-1 w-full">
               <input 
                 type="text" 
                 placeholder="Ort suchen (Enter)" 
-                className="bg-transparent border-none outline-none text-sm text-text px-2 py-1.5 w-52 placeholder:text-secondary"
+                className="bg-transparent border-none outline-none text-sm text-text px-2 py-1.5 w-full placeholder:text-secondary"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleSearch}
@@ -711,80 +711,8 @@ function MapViewContent() {
                   </div>
                 </div>
 
-                {/* Color-Coded Route & Travel Selector */}
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between text-xs font-bold text-secondary uppercase tracking-wider">
-                    <span className="flex items-center gap-1.5"><Navigation className="w-3.5 h-3.5 text-primary" /> Anfahrt & Route (ab deinem Standort)</span>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div 
-                      onClick={() => setRouteMode('driving')}
-                      className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${routeMode === 'driving' ? 'bg-emerald-500/15 border-emerald-500 ring-1 ring-emerald-500 shadow-md' : 'bg-surface border-border hover:border-emerald-500/50'}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${routeMode === 'driving' ? 'bg-emerald-500 text-white' : 'bg-white/5 text-emerald-400'}`}>
-                          <Car className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <div className="text-xs font-bold text-text">Auto / Pkw</div>
-                          <div className="text-[10px] text-emerald-400 font-medium">Schnellste Straßenroute (Grün)</div>
-                        </div>
-                      </div>
-                      <div className="font-bold text-sm text-emerald-400">{selectedJob.routes?.driving || '- Min'}</div>
-                    </div>
-                    
-                    <div 
-                      onClick={() => setRouteMode('cycling')}
-                      className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${routeMode === 'cycling' ? 'bg-amber-500/15 border-amber-500 ring-1 ring-amber-500 shadow-md' : 'bg-surface border-border hover:border-amber-500/50'}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${routeMode === 'cycling' ? 'bg-amber-500 text-white' : 'bg-white/5 text-amber-400'}`}>
-                          <Bike className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <div className="text-xs font-bold text-text">Fahrrad / E-Bike</div>
-                          <div className="text-[10px] text-amber-400 font-medium">Radweg-Netz (Gelb/Orange)</div>
-                        </div>
-                      </div>
-                      <div className="font-bold text-sm text-amber-400">{selectedJob.routes?.cycling || '- Min'}</div>
-                    </div>
-
-                    <div 
-                      onClick={() => setRouteMode('walking')}
-                      className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${routeMode === 'walking' ? 'bg-purple-500/15 border-purple-500 ring-1 ring-purple-500 shadow-md' : 'bg-surface border-border hover:border-purple-500/50'}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${routeMode === 'walking' ? 'bg-purple-500 text-white' : 'bg-white/5 text-purple-400'}`}>
-                          <Train className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <div className="text-xs font-bold text-text">Öffis (RMV / DB)</div>
-                          <div className="text-[10px] text-purple-400 font-medium truncate max-w-[150px]">S-Bahn, RE, Bus (Lila gepunktet)</div>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end">
-                        <div className="font-bold text-sm text-purple-400">{selectedJob.routes?.walking || '- Min'}</div>
-                        <div className="text-[8px] text-secondary">Echtzeit-Daten</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Real-time RMV/DB Link */}
-                  <div className="mt-2">
-                    <a 
-                      href={`https://www.rmv.de/auskunft/bin/jp/query.exe/dn?start=yes&from=${encodeURIComponent(userLocation?.address || '')}&to=${encodeURIComponent(selectedJob.location_name || '')}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 py-2 px-3 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded-lg text-[10px] font-bold text-purple-400 transition-colors"
-                    >
-                      <ExternalLink className="w-3 h-3" /> Verbindung in RMV/DB App prüfen
-                    </a>
-                  </div>
-                </div>
-
                 {/* Apply Button */}
-                <div className="pt-2 sticky bottom-0 bg-card py-3 border-t border-border">
+                <div className="pt-4 sticky bottom-0 bg-card py-3 border-t border-border mt-4">
                   <a href={selectedJob.redirect_url || '#'} target="_blank" rel="noopener noreferrer" className="block">
                     <Button className="w-full bg-primary hover:bg-primary/90 text-white flex items-center justify-center gap-2 py-5 rounded-xl font-bold shadow-xl text-sm">
                       Jetzt bewerben / Stelle aufrufen <ExternalLink className="w-4 h-4" />

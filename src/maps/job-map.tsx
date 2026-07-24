@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import Map, { NavigationControl, Marker, ViewState, Source, Layer, Popup, MapRef } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { Navigation, Layers } from "lucide-react";
+import { Navigation, Layers, User } from "lucide-react";
 import { UserLocation, RouteMode, Job } from "../app/map/page";
 import { getJobCategory } from "@/lib/job-categories";
 import circle from '@turf/circle';
@@ -101,13 +101,11 @@ export function JobMap({
 
   // Fly to user location whenever it changes (e.g. from search or GPS)
   useEffect(() => {
-    if (userLocation) {
+    if (userLocation && !selectedJob) {
       const locKey = `${userLocation.latitude},${userLocation.longitude},${radiusKm}`;
       if (lastFlewToLoc.current === locKey) return;
       lastFlewToLoc.current = locKey;
 
-      // Significantly tighter zoom for "Google Maps" feel
-      // 1km -> ~16, 5km -> ~14.5, 10km -> ~13.5, 25km -> ~12, 100km -> ~10
       const calculatedZoom = Math.min(16, Math.max(9, 15.5 - Math.log2(radiusKm / 1.5)));
       
       setViewState(prev => ({
@@ -115,26 +113,43 @@ export function JobMap({
         longitude: userLocation.longitude,
         latitude: userLocation.latitude,
         zoom: calculatedZoom,
-        pitch: 45, // Add a slight 3D perspective for "premium" feel
+        pitch: 20, // Light pitch for a more "normal" top-down view
         bearing: 0
       }));
     }
-  }, [userLocation, radiusKm]);
+  }, [userLocation, radiusKm, selectedJob]);
 
-  // Fly to selected job CLOSE-UP (zoom 16.5 - street level detail)
+  // Frame the entire route when a job is selected
   const lastSelectedJobId = useRef<string | null>(null);
   useEffect(() => {
-    if (selectedJob && selectedJob.id !== lastSelectedJobId.current) {
-      lastSelectedJobId.current = selectedJob.id;
-      setViewState(prev => ({
-        ...prev,
-        longitude: selectedJob.longitude,
-        latitude: selectedJob.latitude,
-        zoom: 16.5,
-        pitch: 60, // Deep 3D tilt when looking at a specific job
-      }));
+    if (selectedJob && userLocation && mapRef.current) {
+      if (selectedJob.id !== lastSelectedJobId.current) {
+        lastSelectedJobId.current = selectedJob.id;
+        
+        // Calculate bounding box that contains both user and job
+        const minLng = Math.min(userLocation.longitude, selectedJob.longitude);
+        const maxLng = Math.max(userLocation.longitude, selectedJob.longitude);
+        const minLat = Math.min(userLocation.latitude, selectedJob.latitude);
+        const maxLat = Math.max(userLocation.latitude, selectedJob.latitude);
+        
+        // Fit map bounds to show the whole route
+        mapRef.current.fitBounds(
+          [
+            [minLng, minLat],
+            [maxLng, maxLat]
+          ],
+          { 
+            padding: { top: 100, bottom: 100, left: 350, right: 100 }, // Extra left padding for sidebar
+            duration: 1200, 
+            pitch: 20,
+            maxZoom: 15 // Don't zoom in *too* much if they are super close
+          }
+        );
+      }
+    } else if (!selectedJob && lastSelectedJobId.current) {
+       lastSelectedJobId.current = null;
     }
-  }, [selectedJob]);
+  }, [selectedJob, userLocation]);
 
   // Fly to selected job CLOSE-UP (zoom 16.5 - street level detail)
   useEffect(() => {
@@ -322,7 +337,7 @@ export function JobMap({
             <div className="relative flex items-center justify-center cursor-pointer group" title="Mein Standort">
               <div className="absolute w-12 h-12 bg-blue-500/30 rounded-full animate-ping" />
               <div className="w-8 h-8 bg-blue-600 rounded-full border-2 border-white shadow-2xl flex items-center justify-center">
-                <Navigation className="w-4 h-4 text-white" />
+                <User className="w-4 h-4 text-white" />
               </div>
             </div>
           </Marker>

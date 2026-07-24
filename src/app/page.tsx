@@ -91,15 +91,15 @@ export default function Home() {
             type="button"
             onClick={handleGoLocate}
             disabled={isGoLocating}
-            className="w-full max-w-md bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-2xl px-8 py-7 h-auto text-lg font-bold flex items-center justify-center gap-3 shadow-2xl transition-all active:scale-[0.98] cursor-pointer ring-4 ring-emerald-400/20 group overflow-hidden relative"
+            className="w-auto bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-2xl px-6 py-4 h-auto text-base font-bold flex items-center justify-center gap-3 shadow-2xl transition-all active:scale-[0.98] cursor-pointer ring-4 ring-emerald-400/20 group overflow-hidden relative"
           >
             {isGoLocating ? (
-              <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin" />
+              <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
               <>
                 <div className="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out skew-x-[-20deg]" />
-                <Navigation className="w-6 h-6 text-white animate-pulse" />
-                <span className="relative z-10">Jobs vor deiner Haustür finden</span>
+                <Navigation className="w-5 h-5 text-white animate-pulse" />
+                <span className="relative z-10">Jobs vor deiner Haustür</span>
                 <span className="bg-white/20 text-white rounded-full px-2 py-0.5 text-[10px] font-black tracking-widest uppercase">Go</span>
               </>
             )}
