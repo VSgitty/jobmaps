@@ -1,7 +1,7 @@
 'use client';
 
 import { JobMap } from '@/maps/job-map';
-import { Search, MapPin, Navigation, Car, Bike, Train, ChevronLeft, Crosshair, ExternalLink, Briefcase, Filter, CheckCircle2, Building2, Users, Award, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { Search, MapPin, Navigation, Car, Bike, Train, ChevronLeft, ExternalLink, Briefcase, Filter, CheckCircle2, Building2, Users, Award, Sparkles, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useState, useEffect, useCallback, Suspense } from 'react';

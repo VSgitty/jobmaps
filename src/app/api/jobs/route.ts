@@ -160,7 +160,6 @@ export async function GET(request: Request) {
 
           // Helper for industry photos & tailored job details
           const titleLower = (item.titel || item.beruf || '').toLowerCase();
-          const compLower = (item.arbeitgeber || '').toLowerCase();
 
           let images = [
             'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&q=80',
@@ -175,13 +174,13 @@ export async function GET(request: Request) {
             'Starke Team- und Kommunikationsfähigkeit',
             'Fließende Deutschkenntnisse in Wort und Schrift'
           ];
-          let responsibilities = [
+          const responsibilities = [
             'Verantwortung für anspruchsvolle Aufgaben in deinem Spezialgebiet',
             'Mitarbeit an innovativen Projekten im interdisziplinären Team',
             'Kontinuierliche Optimierung von Arbeitsprozessen und Schnittstellen',
             'Direkter Ansprechpartner für Kunden, Partner oder interne Abteilungen'
           ];
-          let benefits = [
+          const benefits = [
             'Flexible Arbeitszeiten & Hybrides Arbeiten (Homeoffice)',
             '30 Tage Urlaub & Sonderurlaubstage',
             'Attraktive Vergütung nach Tarif / Branchenstandard + Boni',
