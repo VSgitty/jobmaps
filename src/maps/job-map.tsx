@@ -84,9 +84,11 @@ export function JobMap({
     ...initialViewState,
   });
 
-  // Sync internal viewState when initialViewState changes (e.g. from parent navigation)
+  // Sync internal viewState ONLY on mount to respect initial target
+  const isInitialMount = useRef(true);
   useEffect(() => {
-    if (initialViewState) {
+    if (initialViewState && isInitialMount.current) {
+      isInitialMount.current = false;
       setViewState(prev => ({
         ...prev,
         ...initialViewState
@@ -94,44 +96,16 @@ export function JobMap({
     }
   }, [initialViewState]);
 
-  // Supercluster setup
-  const supercluster = useMemo(() => {
-    const sc = new Supercluster({
-      radius: 35, // Reduced from 50 to show more individual markers sooner
-      maxZoom: 15 // Clusters will break apart completely at zoom 15
-    });
-
-    const points = jobs.map(job => ({
-      type: 'Feature' as const,
-      properties: { 
-        cluster: false, 
-        jobId: job.id, 
-        job: job,
-        point_count: 0
-      },
-      geometry: {
-        type: 'Point' as const,
-        coordinates: [job.longitude, job.latitude]
-      }
-    }));
-
-    sc.load(points);
-    return sc;
-  }, [jobs]);
-
-  const clusters = useMemo(() => {
-    if (!mapRef.current) return [];
-    try {
-      const bounds = mapRef.current.getMap().getBounds().toArray().flat() as [number, number, number, number];
-      return supercluster.getClusters(bounds, Math.floor(viewState.zoom));
-    } catch {
-      return [];
-    }
-  }, [supercluster, viewState.zoom, jobs]);
+  // Track the last user location we flew to, to avoid flying back on every hover/re-render
+  const lastFlewToLoc = useRef<string>("");
 
   // Fly to user location whenever it changes (e.g. from search or GPS)
   useEffect(() => {
     if (userLocation) {
+      const locKey = `${userLocation.latitude},${userLocation.longitude},${radiusKm}`;
+      if (lastFlewToLoc.current === locKey) return;
+      lastFlewToLoc.current = locKey;
+
       // Significantly tighter zoom for "Google Maps" feel
       // 1km -> ~16, 5km -> ~14.5, 10km -> ~13.5, 25km -> ~12, 100km -> ~10
       const calculatedZoom = Math.min(16, Math.max(9, 15.5 - Math.log2(radiusKm / 1.5)));
@@ -146,6 +120,21 @@ export function JobMap({
       }));
     }
   }, [userLocation, radiusKm]);
+
+  // Fly to selected job CLOSE-UP (zoom 16.5 - street level detail)
+  const lastSelectedJobId = useRef<string | null>(null);
+  useEffect(() => {
+    if (selectedJob && selectedJob.id !== lastSelectedJobId.current) {
+      lastSelectedJobId.current = selectedJob.id;
+      setViewState(prev => ({
+        ...prev,
+        longitude: selectedJob.longitude,
+        latitude: selectedJob.latitude,
+        zoom: 16.5,
+        pitch: 60, // Deep 3D tilt when looking at a specific job
+      }));
+    }
+  }, [selectedJob]);
 
   // Fly to selected job CLOSE-UP (zoom 16.5 - street level detail)
   useEffect(() => {
@@ -189,6 +178,41 @@ export function JobMap({
       return null;
     }
   }, [userLocation, radiusKm]);
+
+  // Supercluster setup
+  const supercluster = useMemo(() => {
+    const sc = new Supercluster({
+      radius: 35, // Reduced from 50 to show more individual markers sooner
+      maxZoom: 15 // Clusters will break apart completely at zoom 15
+    });
+
+    const points = jobs.map(job => ({
+      type: 'Feature' as const,
+      properties: { 
+        cluster: false, 
+        jobId: job.id, 
+        job: job,
+        point_count: 0
+      },
+      geometry: {
+        type: 'Point' as const,
+        coordinates: [job.longitude, job.latitude]
+      }
+    }));
+
+    sc.load(points);
+    return sc;
+  }, [jobs]);
+
+  const clusters = useMemo(() => {
+    if (!mapRef.current) return [];
+    try {
+      const bounds = mapRef.current.getMap().getBounds().toArray().flat() as [number, number, number, number];
+      return supercluster.getClusters(bounds, Math.floor(viewState.zoom));
+    } catch {
+      return [];
+    }
+  }, [supercluster, viewState.zoom, jobs]);
 
   return (
     <div className="w-full h-full relative overflow-hidden bg-background">

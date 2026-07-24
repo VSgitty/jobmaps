@@ -61,11 +61,12 @@ export default function Home() {
           Entdecke Arbeitgeber in deiner Umgebung, vergleiche Pendelzeiten und finde den Job, der wirklich zu deinem Alltag passt.
         </p>
 
-        {/* Search Box & GO Button */}
-        <div className="flex flex-col sm:flex-row items-center gap-3 max-w-2xl w-full mb-6">
+        {/* Search Box & GO Button - Simplified and User-Friendly */}
+        <div className="flex flex-col items-center gap-4 max-w-2xl w-full mb-6">
+          {/* Hidden Search Form - kept for potential future use */}
           <form 
             onSubmit={(e) => { e.preventDefault(); handleSearch(); }}
-            className="bg-white rounded-full p-2 flex items-center shadow-xl flex-1 w-full"
+            className="hidden bg-white rounded-full p-2 items-center shadow-xl w-full"
           >
             <div className="flex-1 flex items-center px-4">
               <Search className="w-5 h-5 text-gray-400 mr-3 shrink-0" />
@@ -85,18 +86,22 @@ export default function Home() {
             </Button>
           </form>
 
-          {/* GO Instant Doorstep Button */}
+          {/* New Wide High-Impact Button */}
           <Button 
             type="button"
             onClick={handleGoLocate}
             disabled={isGoLocating}
-            className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-2xl shrink-0 transition-transform active:scale-95 cursor-pointer ring-4 ring-emerald-400/20 p-0"
-            title="Sofort Standort bestimmen und Jobs in der Nähe finden"
+            className="w-full max-w-md bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-2xl px-8 py-7 h-auto text-lg font-bold flex items-center justify-center gap-3 shadow-2xl transition-all active:scale-[0.98] cursor-pointer ring-4 ring-emerald-400/20 group overflow-hidden relative"
           >
             {isGoLocating ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
-              <span className="font-black text-sm tracking-tighter drop-shadow-sm">GO</span>
+              <>
+                <div className="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out skew-x-[-20deg]" />
+                <Navigation className="w-6 h-6 text-white animate-pulse" />
+                <span className="relative z-10">Jobs vor deiner Haustür finden</span>
+                <span className="bg-white/20 text-white rounded-full px-2 py-0.5 text-[10px] font-black tracking-widest uppercase">Go</span>
+              </>
             )}
           </Button>
         </div>
