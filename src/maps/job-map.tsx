@@ -80,6 +80,7 @@ export function JobMap({
   const [mapStyleKey, setMapStyleKey] = useState<'streets' | 'dark' | 'outdoors'>('streets');
   const [showStylePicker, setShowStyleKeyPicker] = useState(false);
   const [showAgeLegend, setShowAgeLegend] = useState(true);
+  const [is3DMode, setIs3DMode] = useState(false);
   const [activeLocationPopup, setActiveLocationPopup] = useState<{ lat: number; lng: number; jobs: Job[] } | null>(null);
 
   const currentHoveredJob = useMemo(() => {
@@ -142,12 +143,12 @@ export function JobMap({
       mapRef.current?.flyTo({
         center: [userLocation.longitude, userLocation.latitude],
         zoom: calculatedZoom,
-        pitch: 20,
+        pitch: is3DMode ? 20 : 0,
         bearing: 0,
         duration: 1200
       });
     }
-  }, [userLocation, radiusKm, selectedJob]);
+  }, [userLocation, radiusKm, selectedJob, is3DMode]);
 
   // Frame the entire route when a job is selected
   const lastSelectedJobId = useRef<string | null>(null);
@@ -171,7 +172,7 @@ export function JobMap({
           { 
             padding: { top: 100, bottom: 100, left: 350, right: 100 }, // Extra left padding for sidebar
             duration: 1200, 
-            pitch: 20,
+            pitch: is3DMode ? 20 : 0,
             maxZoom: 15 // Don't zoom in *too* much if they are super close
           }
         );
@@ -179,9 +180,9 @@ export function JobMap({
     } else if (!selectedJob && lastSelectedJobId.current) {
        lastSelectedJobId.current = null;
     }
-  }, [selectedJob, userLocation]);
+  }, [selectedJob, userLocation, is3DMode]);
 
-  // Camera transition: 3D tilt (pitch: 55) on selection, reset to 2D flat view (pitch: 0) on deselection
+  // Camera transition: Optional 3D tilt ONLY when is3DMode is explicitly enabled by the user
   const prevSelectedJobIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -193,13 +194,13 @@ export function JobMap({
         mapRef.current.flyTo({
           center: [selectedJob.longitude, selectedJob.latitude],
           zoom: 16,
-          pitch: 55, // 3D tilt when clicking a job
-          bearing: -15, // Subtle 3D perspective
+          pitch: is3DMode ? 55 : 0, // 2D flat view by default unless 3D mode is on
+          bearing: is3DMode ? -15 : 0,
           duration: 1100
         });
       }
     } else if (prevSelectedJobIdRef.current && !selectedJob) {
-      // User clicked away / deselected: smoothly return to 2D flat view (pitch: 0) without zooming far away!
+      // User clicked away / deselected: return to 2D flat view (pitch: 0)
       prevSelectedJobIdRef.current = null;
 
       if (mapRef.current) {
@@ -210,7 +211,7 @@ export function JobMap({
         });
       }
     }
-  }, [selectedJob, userLocation, radiusKm]);
+  }, [selectedJob, userLocation, radiusKm, is3DMode]);
 
   // Make Mapbox POIs / Shops semi-transparent on style load
   const handleMapLoad = () => {
@@ -408,40 +409,58 @@ export function JobMap({
           </div>
         )}
 
-        {/* Map Style Selector Button */}
+        {/* Map Style & Optional 3D Selector Buttons */}
         {interactive && (
-          <div className="absolute top-4 right-4 z-20 flex flex-col items-end">
+          <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-2">
             <button 
-              onClick={() => setShowStyleKeyPicker(!showStylePicker)}
-              className="bg-card/90 backdrop-blur-md border border-border text-foreground hover:bg-card px-3 py-2 rounded-xl shadow-lg text-xs font-semibold flex items-center gap-2 transition-all"
-              title="Kartenstil wählen"
+              onClick={() => {
+                const next3D = !is3DMode;
+                setIs3DMode(next3D);
+                mapRef.current?.easeTo({
+                  pitch: next3D ? 55 : 0,
+                  bearing: next3D ? -15 : 0,
+                  duration: 800
+                });
+              }}
+              className={`backdrop-blur-md border px-3 py-2 rounded-xl shadow-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${is3DMode ? 'bg-blue-600 text-white border-blue-400 ring-2 ring-blue-400/50' : 'bg-card/90 border-border text-foreground hover:bg-card'}`}
+              title="Optional 3D-Kartenperspektive umschalten"
             >
-              <Layers className="w-4 h-4 text-primary" />
-              <span>Karte: {mapStyleKey === 'streets' ? 'Bunt' : mapStyleKey === 'dark' ? 'Dunkel' : 'Gelände'}</span>
+              <span>{is3DMode ? '🧊 3D An' : '🗺️ 2D Flach'}</span>
             </button>
 
-            {showStylePicker && (
-              <div className="mt-2 bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-2xl p-2 flex flex-col gap-1 w-36 text-xs animate-in fade-in slide-in-from-top-2">
-                <button 
-                  onClick={() => { setMapStyleKey('streets'); setShowStyleKeyPicker(false); }}
-                  className={`px-3 py-1.5 rounded-lg text-left font-medium transition-colors ${mapStyleKey === 'streets' ? 'bg-primary text-white font-bold' : 'hover:bg-surface text-foreground'}`}
-                >
-                  🎨 Bunt (Geschäfte)
-                </button>
-                <button 
-                  onClick={() => { setMapStyleKey('dark'); setShowStyleKeyPicker(false); }}
-                  className={`px-3 py-1.5 rounded-lg text-left font-medium transition-colors ${mapStyleKey === 'dark' ? 'bg-primary text-white font-bold' : 'hover:bg-surface text-foreground'}`}
-                >
-                  🌙 Dark Mode
-                </button>
-                <button 
-                  onClick={() => { setMapStyleKey('outdoors'); setShowStyleKeyPicker(false); }}
-                  className={`px-3 py-1.5 rounded-lg text-left font-medium transition-colors ${mapStyleKey === 'outdoors' ? 'bg-primary text-white font-bold' : 'hover:bg-surface text-foreground'}`}
-                >
-                  🌲 Gelände
-                </button>
-              </div>
-            )}
+            <div className="flex flex-col items-end">
+              <button 
+                onClick={() => setShowStyleKeyPicker(!showStylePicker)}
+                className="bg-card/90 backdrop-blur-md border border-border text-foreground hover:bg-card px-3 py-2 rounded-xl shadow-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer"
+                title="Kartenstil wählen"
+              >
+                <Layers className="w-4 h-4 text-primary" />
+                <span>Karte: {mapStyleKey === 'streets' ? 'Bunt' : mapStyleKey === 'dark' ? 'Dunkel' : 'Gelände'}</span>
+              </button>
+
+              {showStylePicker && (
+                <div className="mt-2 bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-2xl p-2 flex flex-col gap-1 w-36 text-xs animate-in fade-in slide-in-from-top-2">
+                  <button 
+                    onClick={() => { setMapStyleKey('streets'); setShowStyleKeyPicker(false); }}
+                    className={`px-3 py-1.5 rounded-lg text-left font-medium transition-colors ${mapStyleKey === 'streets' ? 'bg-primary text-white font-bold' : 'hover:bg-surface text-foreground'}`}
+                  >
+                    🎨 Bunt (Geschäfte)
+                  </button>
+                  <button 
+                    onClick={() => { setMapStyleKey('dark'); setShowStyleKeyPicker(false); }}
+                    className={`px-3 py-1.5 rounded-lg text-left font-medium transition-colors ${mapStyleKey === 'dark' ? 'bg-primary text-white font-bold' : 'hover:bg-surface text-foreground'}`}
+                  >
+                    🌙 Dark Mode
+                  </button>
+                  <button 
+                    onClick={() => { setMapStyleKey('outdoors'); setShowStyleKeyPicker(false); }}
+                    className={`px-3 py-1.5 rounded-lg text-left font-medium transition-colors ${mapStyleKey === 'outdoors' ? 'bg-primary text-white font-bold' : 'hover:bg-surface text-foreground'}`}
+                  >
+                    🌲 Gelände
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

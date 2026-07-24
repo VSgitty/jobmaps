@@ -416,6 +416,9 @@ export async function GET(request: Request) {
         enrichJobWithMetrics(j, lat, lon);
       }
 
+      // Strictly exclude jobs older than 40 days
+      mergedJobs = mergedJobs.filter(j => (j.published_days_old ?? 0) <= 40);
+
       // Adaptive Radius Filter: If narrow radius has < 10 jobs, include nearby regional jobs
       if (!isNationwide) {
         const insideRadius = mergedJobs.filter(j => (j.exact_distance || 0) <= radius * 1.25);

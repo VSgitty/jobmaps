@@ -164,6 +164,10 @@ function MapViewContent() {
   // Computed filtered jobs based on Max Commute & Homeoffice
   const filteredJobs = useMemo(() => {
     return jobs.filter(job => {
+      // Age Filter: Exclude jobs older than 40 days
+      const daysOld = job.published_days_old ?? calculateJobAge(job.published_date).daysOld;
+      if (daysOld > 40) return false;
+
       // Commute Filter
       const commuteTime = job.commute_times?.[routeMode] ?? Math.round(((job.exact_distance ?? 1) / 40) * 60);
       const passesCommute = maxCommuteMins >= 90 || commuteTime <= maxCommuteMins;
