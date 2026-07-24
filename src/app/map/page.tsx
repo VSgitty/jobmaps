@@ -63,6 +63,7 @@ function MapViewContent() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [routeMode, setRouteMode] = useState<RouteMode>('driving');
+  const [employerMode, setEmployerMode] = useState<'active' | 'all'>('active');
 
   // Load search history on mount
   useEffect(() => {
@@ -291,16 +292,16 @@ function MapViewContent() {
   return (
     <main className="flex flex-col h-screen w-full bg-background overflow-hidden font-sans">
       {/* Top Header */}
-      <header className="h-16 border-b border-border bg-card flex items-center justify-between px-4 z-50 shrink-0">
-        <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-2">
+      <header className="h-16 border-b border-border bg-card flex items-center justify-between px-4 z-50 shrink-0 gap-4">
+        <div className="flex items-center gap-6 flex-1 max-w-[65%]">
+          <Link href="/" className="flex items-center gap-2 shrink-0">
             <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
               <MapPin className="w-5 h-5 text-white" />
             </div>
-            <span className="text-white font-bold text-lg tracking-tight">Job Maps</span>
+            <span className="text-white font-bold text-lg tracking-tight hidden sm:inline">Job Maps</span>
           </Link>
           
-          <div className="flex bg-surface rounded-md p-1 border border-border items-center gap-1 relative flex-1 max-w-sm">
+          <div className="flex bg-surface rounded-md p-1 border border-border items-center gap-1 relative flex-1 w-full max-w-3xl">
             <Search className="w-4 h-4 text-secondary ml-2 shrink-0" />
             <div className="relative flex-1 w-full">
               <input 
@@ -726,6 +727,22 @@ function MapViewContent() {
 
         {/* Map Area */}
         <div className="flex-1 relative">
+          {/* Top Center Map Filter Toggle */}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-card/90 backdrop-blur-md border border-border p-1.5 rounded-2xl shadow-xl flex gap-1 animate-in fade-in slide-in-from-top-4">
+            <button 
+              onClick={() => setEmployerMode('active')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${employerMode === 'active' ? 'bg-primary text-white shadow-md' : 'text-secondary hover:text-text hover:bg-surface'}`}
+            >
+              Aktuelle Stellen
+            </button>
+            <button 
+              onClick={() => setEmployerMode('all')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${employerMode === 'all' ? 'bg-emerald-500 text-white shadow-md' : 'text-secondary hover:text-text hover:bg-surface'}`}
+            >
+              Alle Arbeitgeber
+            </button>
+          </div>
+
           <JobMap 
             initialViewState={{ zoom: 11 }} 
             userLocation={userLocation}

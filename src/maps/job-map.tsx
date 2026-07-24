@@ -15,6 +15,28 @@ const MAP_STYLES = {
   outdoors: "mapbox://styles/mapbox/outdoors-v12",    // Geländekarte
 };
 
+const getCompanyBrand = (name: string) => {
+  if (!name) return null;
+  const n = name.toLowerCase();
+  if (n.includes('deutsche bahn') || n === 'db') return { text: 'DB', color: '#FF0000', textCol: 'text-white' };
+  if (n.includes('telekom')) return { text: 'T', color: '#E20074', textCol: 'text-white' };
+  if (n.includes('siemens')) return { text: 'SIE', color: '#009999', textCol: 'text-white', font: 'text-[9px]' };
+  if (n.includes('bosch')) return { text: 'BOS', color: '#ED0007', textCol: 'text-white', font: 'text-[9px]' };
+  if (n.includes('edeka')) return { text: 'EDEKA', color: '#005CA9', textCol: 'text-yellow-400', font: 'text-[7px]' };
+  if (n.includes('aldi')) return { text: 'ALDI', color: '#005CA9', textCol: 'text-white', font: 'text-[9px]' };
+  if (n.includes('lidl')) return { text: 'Lidl', color: '#0050AA', textCol: 'text-yellow-400', font: 'text-[10px]' };
+  if (n.includes('rewe')) return { text: 'REWE', color: '#CC071E', textCol: 'text-white', font: 'text-[9px]' };
+  if (n.includes('kaufland')) return { text: 'K', color: '#E3000F', textCol: 'text-white' };
+  if (n.includes('dm-drogerie') || n === 'dm') return { text: 'dm', color: '#003282', textCol: 'text-yellow-400' };
+  if (n.includes('rossmann')) return { text: 'R', color: '#E3000F', textCol: 'text-white' };
+  if (n.includes('allianz')) return { text: 'Allianz', color: '#003781', textCol: 'text-white', font: 'text-[8px]' };
+  if (n.includes('k&s') || n.includes('senioren')) return { text: 'K&S', color: '#005b82', textCol: 'text-white', font: 'text-[10px]' };
+  if (n.includes('diakonie')) return { text: 'Diakonie', color: '#005ca9', textCol: 'text-white', font: 'text-[8px]' };
+  if (n.includes('volksbank') || n.includes('vr bank')) return { text: 'V', color: '#0061B5', textCol: 'text-orange-500' };
+  if (n.includes('sparkasse')) return { text: 'S', color: '#FF0000', textCol: 'text-white' };
+  return null;
+};
+
 interface JobMapProps {
   initialViewState?: Partial<ViewState>;
   interactive?: boolean;
@@ -377,7 +399,9 @@ export function JobMap({
           const isSelected = selectedJob?.id === jobId;
           const isHovered = hoveredJobId === jobId;
           const category = getJobCategory(job.title, job.company_name, job.beruf);
+          const brand = getCompanyBrand(job.company_name);
           const IconComp = category.icon;
+          const bgColor = brand ? brand.color : category.color;
 
           return (
             <Marker 
@@ -403,17 +427,23 @@ export function JobMap({
                 {(isSelected || isHovered) && (
                   <div 
                     className="absolute -inset-1.5 rounded-full animate-pulse opacity-75 blur-xs"
-                    style={{ backgroundColor: category.color }}
+                    style={{ backgroundColor: bgColor }}
                   />
                 )}
 
                 {/* Compact Circular Icon Pin */}
                 <div 
                   className={`w-9 h-9 rounded-full flex items-center justify-center text-white border-2 border-white shadow-xl transition-transform ${isSelected ? 'ring-4 ring-white/80 scale-110' : ''}`}
-                  style={{ backgroundColor: category.color }}
+                  style={{ backgroundColor: bgColor }}
                   title={`${job.company_name} - ${job.title}`}
                 >
-                  <IconComp className="w-4 h-4 drop-shadow-sm" />
+                  {brand ? (
+                    <span className={`font-black tracking-tighter drop-shadow-sm ${brand.font || 'text-[11px]'} ${brand.textCol}`}>
+                      {brand.text}
+                    </span>
+                  ) : (
+                    <IconComp className="w-4 h-4 drop-shadow-sm" />
+                  )}
                 </div>
 
                 {/* Info Tooltip on Hover */}
