@@ -1,6 +1,6 @@
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
-import { Building2, TrendingUp, Users, Target, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Building2, TrendingUp, Users, Target, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
 export default function ArbeitgeberPage() {
