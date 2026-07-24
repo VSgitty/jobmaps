@@ -137,6 +137,15 @@ export default function Home() {
               Finde nicht nur Jobs, sondern Arbeitsplätze und Arbeitgeber, die perfekt zu deinem Standort, deiner maximalen Pendelzeit und deinem Leben passen.
             </p>
 
+            <div className="flex flex-wrap items-center gap-3 mb-8">
+              <Link href="/map">
+                <Button className="bg-blue-600 hover:bg-blue-500 text-white rounded-2xl px-8 py-6 text-base font-extrabold shadow-2xl shadow-blue-600/40 transition-transform active:scale-95 flex items-center gap-2.5 cursor-pointer border border-blue-400/30">
+                  <span>Persönlichen Arbeitsmarkt anzeigen</span>
+                  <ArrowRight className="w-5 h-5" />
+                </Button>
+              </Link>
+            </div>
+
             {/* Quick Chips */}
             <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-400">
               <span className="text-slate-400 font-bold">Top-Regionen:</span>
@@ -150,141 +159,6 @@ export default function Home() {
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* Right Life-First Interactive Card (5-Step Hero Builder) */}
-          <div className="w-full lg:w-[480px] shrink-0 bg-slate-900/90 backdrop-blur-2xl border border-slate-700/80 rounded-3xl p-6 sm:p-7 shadow-2xl shadow-black/80 space-y-5 animate-in fade-in slide-in-from-bottom-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <span className="text-sm font-extrabold text-white flex items-center gap-2">
-                <Compass className="w-4 h-4 text-blue-400" /> Arbeitsmarkt konfigurieren
-              </span>
-              <span className="text-[10px] font-bold bg-blue-500/20 text-blue-300 px-2.5 py-0.5 rounded-full border border-blue-500/30">
-                Echtzeit
-              </span>
-            </div>
-
-            <form onSubmit={handleLaunchPersonalMarket} className="space-y-4">
-              {/* Step 1: Location */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
-                  <span>1. Wo wohnst / suchst du?</span>
-                  <button
-                    type="button"
-                    onClick={handleGoLocate}
-                    disabled={isGoLocating}
-                    className="text-blue-400 hover:text-blue-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
-                  >
-                    {isGoLocating ? 'Bestimme GPS...' : '📍 GPS nutzen'}
-                  </button>
-                </label>
-                <div className="relative">
-                  <MapPin className="w-4 h-4 text-blue-400 absolute left-3 top-3" />
-                  <input
-                    type="text"
-                    placeholder="Adresse, Stadt oder PLZ eingeben..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onFocus={() => setShowDropdown(true)}
-                    onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs sm:text-sm text-white placeholder:text-slate-500 outline-none focus:border-blue-500 transition-colors"
-                  />
-
-                  {/* Autocomplete Dropdown */}
-                  {showDropdown && suggestions.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden">
-                      {suggestions.map((feat: any) => (
-                        <button
-                          key={feat.id}
-                          type="button"
-                          className="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-slate-800 flex items-center gap-2"
-                          onClick={() => handleSelectSuggestion(feat)}
-                        >
-                          <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                          <span className="truncate">{feat.place_name as string}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Step 2: Job Query */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300">2. Was möchtest du arbeiten?</label>
-                <div className="relative">
-                  <Briefcase className="w-4 h-4 text-blue-400 absolute left-3 top-3" />
-                  <input
-                    type="text"
-                    placeholder="z.B. Softwareentwickler, Verkäufer, Pflege..."
-                    value={jobQuery}
-                    onChange={(e) => setJobQuery(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs sm:text-sm text-white placeholder:text-slate-500 outline-none focus:border-blue-500 transition-colors"
-                  />
-                </div>
-              </div>
-
-              {/* Step 3: Commute Slider */}
-              <div className="space-y-2 bg-slate-950/60 p-3 rounded-2xl border border-slate-800/80">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-slate-300 flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-blue-400" /> 3. Max. Pendelzeit:
-                  </span>
-                  <span className="font-extrabold text-blue-400">{maxCommute} Minuten</span>
-                </div>
-                <input
-                  type="range"
-                  min="10"
-                  max="90"
-                  step="5"
-                  value={maxCommute}
-                  onChange={(e) => setMaxCommute(Number(e.target.value))}
-                  className="w-full accent-blue-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
-                />
-                <div className="flex justify-between text-[10px] font-semibold text-slate-500">
-                  <span>10m</span>
-                  <span>20m</span>
-                  <span>30m</span>
-                  <span>45m</span>
-                  <span>60m+</span>
-                </div>
-              </div>
-
-              {/* Step 4: Mobility Transport Mode */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300">4. Verkehrsmittel:</label>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {[
-                    { id: 'driving', label: 'Auto', icon: Car, color: 'text-blue-400' },
-                    { id: 'transit', label: 'ÖPNV', icon: Train, color: 'text-purple-400' },
-                    { id: 'cycling', label: 'Fahrrad', icon: Bike, color: 'text-amber-400' },
-                    { id: 'walking', label: 'Zu Fuß', icon: Navigation, color: 'text-emerald-400' },
-                  ].map(m => {
-                    const Icon = m.icon;
-                    const isActive = transportMode === m.id;
-                    return (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => setTransportMode(m.id as any)}
-                        className={`py-2 rounded-xl border text-xs font-bold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${isActive ? 'bg-blue-600 border-blue-400 text-white shadow-lg shadow-blue-600/30' : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'}`}
-                      >
-                        <Icon className={`w-4 h-4 ${isActive ? 'text-white' : m.color}`} />
-                        <span className="text-[11px]">{m.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Step 5: Submit Button */}
-              <Button
-                type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-500 text-white rounded-xl py-6 text-sm font-extrabold shadow-xl shadow-blue-600/30 transition-transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer mt-2"
-              >
-                <span>Persönlichen Arbeitsmarkt anzeigen</span>
-                <ArrowRight className="w-4 h-4" />
-              </Button>
-            </form>
           </div>
         </div>
       </section>
