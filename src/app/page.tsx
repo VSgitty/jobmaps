@@ -2,7 +2,7 @@
 
 import { Header } from '@/components/layout/header';
 import { JobMap } from '@/maps/job-map';
-import { MapPin, Navigation, Clock, Target, Eye, Star, TrendingUp, Building2, Users, Search, ArrowRight } from 'lucide-react';
+import { MapPin, Navigation, Clock, Target, TrendingUp, Building2, Users, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -12,7 +12,7 @@ export default function Home() {
   const router = useRouter();
   const [isGoLocating, setIsGoLocating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<Record<string, unknown>[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
 
   // Animated counters state
@@ -51,9 +51,9 @@ export default function Home() {
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
-  const handleSelectSuggestion = (feat: any) => {
-    const [longitude, latitude] = feat.center;
-    const address = feat.place_name;
+  const handleSelectSuggestion = (feat: Record<string, unknown>) => {
+    const [longitude, latitude] = feat.center as [number, number];
+    const address = feat.place_name as string;
     router.push(`/map?lat=${latitude}&lon=${longitude}&q=${encodeURIComponent(address)}`);
   };
 
@@ -309,7 +309,7 @@ export default function Home() {
 }
 
 // Subcomponents
-function CounterCard({ icon, value, label, delay }: any) {
+function CounterCard({ icon, value, label, delay }: { icon: React.ReactNode, value: string, label: string, delay: number }) {
   return (
     <div 
       className="bg-surface/60 backdrop-blur-xl border border-white/10 p-6 rounded-3xl flex flex-col justify-center shadow-xl hover:-translate-y-1 transition-transform"
@@ -324,7 +324,7 @@ function CounterCard({ icon, value, label, delay }: any) {
   );
 }
 
-function FeatureBox({ icon, title, description }: any) {
+function FeatureBox({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) {
   return (
     <div className="bg-surface/30 border border-white/5 hover:border-primary/30 hover:bg-surface/50 p-10 rounded-[2rem] transition-all duration-300 group cursor-default">
       <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-8 group-hover:scale-110 group-hover:bg-primary group-hover:text-white transition-all duration-300">
@@ -336,7 +336,7 @@ function FeatureBox({ icon, title, description }: any) {
   );
 }
 
-function Sparkles(props: any) {
+function Sparkles(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
@@ -348,7 +348,7 @@ function Sparkles(props: any) {
   );
 }
 
-function Briefcase(props: any) {
+function Briefcase(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />

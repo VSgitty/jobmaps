@@ -97,7 +97,7 @@ export async function GET(request: Request) {
       const rawJobs: RawArbeitsagenturJob[] = baData.stellenangebote || [];
 
       if (rawJobs.length > 0) {
-        let jobs = rawJobs.map((item, idx) => {
+        const jobs = rawJobs.map((item, idx) => {
           let jobLat = item.arbeitsort?.koordinaten?.lat;
           let jobLon = item.arbeitsort?.koordinaten?.lon;
 
@@ -240,7 +240,7 @@ export async function GET(request: Request) {
               walking: Math.max(1, Math.round((exactDist / 5) * 60)) + ' Min'
             }
           };
-        }).filter(Boolean) as any[];
+        }).filter(Boolean) as Record<string, unknown>[];
 
         // Filter by jobType if specified
         let filteredJobs = jobs;

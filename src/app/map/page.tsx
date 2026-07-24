@@ -53,7 +53,7 @@ function MapViewContent() {
   const [hoveredJobId, setHoveredJobId] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<Record<string, unknown>[]>([]);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [keywordQuery, setKeywordQuery] = useState('');
@@ -195,9 +195,9 @@ function MapViewContent() {
     }
   }, [searchParams, handleLocateMe]);
 
-  const handleSelectSuggestion = (feature: any) => {
-    const [longitude, latitude] = feature.center;
-    const address = feature.place_name;
+  const handleSelectSuggestion = (feature: Record<string, unknown>) => {
+    const [longitude, latitude] = feature.center as [number, number];
+    const address = feature.place_name as string;
     setUserLocation({ latitude, longitude, address });
     setSearchQuery(address);
     setSuggestions([]);

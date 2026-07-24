@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
-import Map, { NavigationControl, Marker, ViewState, Source, Layer, Popup, MapRef } from "react-map-gl/mapbox";
+import Map, { NavigationControl, Marker, ViewState, Source, Layer, MapRef } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { Navigation, Layers, User } from "lucide-react";
+import { Layers, User } from "lucide-react";
 import { UserLocation, RouteMode, Job } from "../app/map/page";
 import { getJobCategory } from "@/lib/job-categories";
 import circle from '@turf/circle';
@@ -101,6 +101,7 @@ export function JobMap({
 
   // Track current zoom for clustering purposes
   const [currentZoom, setCurrentZoom] = useState(initialViewState?.zoom || 11);
+  const [bounds, setBounds] = useState<[number, number, number, number]>([-180, -85, 180, 85]);
 
   // Default initial configuration
   const mapInitialViewState = useMemo(() => ({
@@ -184,6 +185,7 @@ export function JobMap({
     if (!mapRef.current) return;
     const map = mapRef.current.getMap();
     try {
+      setBounds(map.getBounds().toArray().flat() as [number, number, number, number]);
       if (map.getLayer('poi-label')) {
         map.setPaintProperty('poi-label', 'icon-opacity', 0.45);
         map.setPaintProperty('poi-label', 'text-opacity', 0.45);
@@ -235,21 +237,22 @@ export function JobMap({
   }, [jobs]);
 
   const clusters = useMemo(() => {
-    if (!mapRef.current) return [];
     try {
-      const bounds = mapRef.current.getMap().getBounds().toArray().flat() as [number, number, number, number];
       return supercluster.getClusters(bounds, Math.floor(currentZoom));
     } catch {
       return [];
     }
-  }, [supercluster, currentZoom, jobs]);
+  }, [supercluster, currentZoom, bounds]);
 
   return (
     <div className="w-full h-full relative overflow-hidden bg-background">
       <Map
         ref={mapRef}
         initialViewState={mapInitialViewState}
-        onMove={(evt) => setCurrentZoom(evt.viewState.zoom)}
+        onMove={(evt) => {
+          setCurrentZoom(evt.viewState.zoom);
+          setBounds(evt.target.getBounds().toArray().flat() as [number, number, number, number]);
+        }}
         mapStyle={MAP_STYLES[mapStyleKey]}
         mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
         style={{ width: "100%", height: "100%" }}
