@@ -677,6 +677,66 @@ function MapViewContent() {
                   </div>
                 </div>
 
+                {/* Commute & Route Times Section */}
+                {(() => {
+                  const distKm = selectedJob.exact_distance ?? selectedJob.distance ?? 1;
+                  const drivingTime = selectedJob.routes?.driving || `${Math.max(1, Math.round((distKm / 50) * 60))} Min`;
+                  const cyclingTime = selectedJob.routes?.cycling || `${Math.max(1, Math.round((distKm / 15) * 60))} Min`;
+                  const walkingTime = selectedJob.routes?.walking || `${Math.max(1, Math.round((distKm / 5) * 60))} Min`;
+                  const transitTime = `${Math.max(2, Math.round((distKm / 30) * 60 + 3))} Min`;
+
+                  return (
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                          <Navigation className="w-4 h-4 text-primary" /> Pendelzeit & Anfahrt (ab deinem Standort)
+                        </h3>
+                        <span className="text-[10px] text-primary font-semibold bg-primary/10 px-2 py-0.5 rounded-full">
+                          📍 {distKm < 1 ? `${Math.max(10, Math.round(distKm * 1000))} m` : `${distKm.toFixed(1)} km`}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <button
+                          onClick={() => setRouteMode('driving')}
+                          className={`p-3 rounded-2xl border flex flex-col items-center justify-center text-center transition-all ${routeMode === 'driving' ? 'bg-primary/20 border-primary text-white shadow-md ring-1 ring-primary' : 'bg-surface border-border text-secondary hover:border-border/80 hover:text-text'}`}
+                        >
+                          <Car className="w-5 h-5 text-blue-400 mb-1" />
+                          <span className="text-xs font-extrabold text-text">{drivingTime}</span>
+                          <span className="text-[10px] font-medium opacity-80">Mit Auto</span>
+                        </button>
+
+                        <button
+                          onClick={() => setRouteMode('transit')}
+                          className={`p-3 rounded-2xl border flex flex-col items-center justify-center text-center transition-all ${routeMode === 'transit' ? 'bg-primary/20 border-primary text-white shadow-md ring-1 ring-primary' : 'bg-surface border-border text-secondary hover:border-border/80 hover:text-text'}`}
+                        >
+                          <Train className="w-5 h-5 text-sky-400 mb-1" />
+                          <span className="text-xs font-extrabold text-text">{transitTime}</span>
+                          <span className="text-[10px] font-medium opacity-80">Mit ÖPNV</span>
+                        </button>
+
+                        <button
+                          onClick={() => setRouteMode('cycling')}
+                          className={`p-3 rounded-2xl border flex flex-col items-center justify-center text-center transition-all ${routeMode === 'cycling' ? 'bg-primary/20 border-primary text-white shadow-md ring-1 ring-primary' : 'bg-surface border-border text-secondary hover:border-border/80 hover:text-text'}`}
+                        >
+                          <Bike className="w-5 h-5 text-indigo-400 mb-1" />
+                          <span className="text-xs font-extrabold text-text">{cyclingTime}</span>
+                          <span className="text-[10px] font-medium opacity-80">Mit Fahrrad</span>
+                        </button>
+
+                        <button
+                          onClick={() => setRouteMode('walking')}
+                          className={`p-3 rounded-2xl border flex flex-col items-center justify-center text-center transition-all ${routeMode === 'walking' ? 'bg-primary/20 border-primary text-white shadow-md ring-1 ring-primary' : 'bg-surface border-border text-secondary hover:border-border/80 hover:text-text'}`}
+                        >
+                          <Clock className="w-5 h-5 text-emerald-400 mb-1" />
+                          <span className="text-xs font-extrabold text-text">{walkingTime}</span>
+                          <span className="text-[10px] font-medium opacity-80">Zu Fuß</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Description Paragraph */}
                 <div className="space-y-2">
                   <h3 className="text-xs font-bold text-secondary uppercase tracking-wider flex items-center gap-1.5">
