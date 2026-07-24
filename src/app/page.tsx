@@ -90,17 +90,13 @@ export default function Home() {
             type="button"
             onClick={handleGoLocate}
             disabled={isGoLocating}
-            className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-full px-5 py-3.5 h-auto text-sm font-extrabold flex items-center gap-2 shadow-2xl shrink-0 transition-transform active:scale-95 cursor-pointer ring-2 ring-emerald-400/30"
-            title="Sofort Standort bestimmen und Jobs direkt vor deiner Haustür anzeigen"
+            className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-2xl shrink-0 transition-transform active:scale-95 cursor-pointer ring-4 ring-emerald-400/20 p-0"
+            title="Sofort Standort bestimmen und Jobs in der Nähe finden"
           >
             {isGoLocating ? (
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
-              <>
-                <span className="bg-white text-emerald-700 rounded-full w-6 h-6 flex items-center justify-center font-black text-xs shadow-sm">GO</span>
-                <Navigation className="w-4 h-4 text-white fill-white" />
-                <span className="whitespace-nowrap">Vor der Haustür</span>
-              </>
+              <span className="bg-white text-emerald-700 rounded-full w-7 h-7 flex items-center justify-center font-black text-[10px] shadow-sm tracking-tighter">GO</span>
             )}
           </Button>
         </div>
