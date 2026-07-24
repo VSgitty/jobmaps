@@ -56,6 +56,8 @@ export interface Job {
   redirect_url?: string;
   sources?: JobSource[];
   published_date?: string;
+  published_days_old?: number;
+  location_precision?: 'exact' | 'approximate';
   beruf?: string;
   rating?: string;
   company_size?: string;
@@ -186,7 +188,7 @@ function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: num
   return R * c;
 }
 
-function resolveJobCoordinates(item: RawArbeitsagenturJob, searchLat: number, searchLon: number, idx: number): [number, number] {
+function resolveJobCoordinates(item: RawArbeitsagenturJob, searchLat: number, searchLon: number, idx: number): { coords: [number, number]; precision: 'exact' | 'approximate' } {
   const goldenAngle = 2.39996;
   const cityLower = (item.arbeitsort?.ort || '').toLowerCase().trim();
   const companyLower = (item.arbeitgeber || '').toLowerCase().trim();
@@ -196,7 +198,7 @@ function resolveJobCoordinates(item: RawArbeitsagenturJob, searchLat: number, se
     if (cityLower.includes(cityKey)) {
       for (const [storeKey, exactCoords] of Object.entries(storeMap)) {
         if (companyLower.includes(storeKey)) {
-          return exactCoords; // Exact store/building location on map!
+          return { coords: exactCoords, precision: 'exact' }; // Exact store/building location on map!
         }
       }
     }
@@ -207,7 +209,7 @@ function resolveJobCoordinates(item: RawArbeitsagenturJob, searchLat: number, se
     const latNum = Number(item.arbeitsort.koordinaten.lat);
     const lonNum = Number(item.arbeitsort.koordinaten.lon);
     if (!isNaN(latNum) && !isNaN(lonNum) && latNum > 45 && latNum < 56 && lonNum > 5 && lonNum < 16) {
-      return [latNum, lonNum];
+      return { coords: [latNum, lonNum], precision: item.arbeitsort.strasse ? 'exact' : 'approximate' };
     }
   }
 
@@ -216,14 +218,14 @@ function resolveJobCoordinates(item: RawArbeitsagenturJob, searchLat: number, se
     if (cityLower.includes(cityName)) {
       const angle = idx * goldenAngle;
       const r = 0.0012 + (Math.sqrt(idx + 1) * 0.001);
-      return [coords[0] + r * Math.sin(angle), coords[1] + r * Math.cos(angle) * 1.3];
+      return { coords: [coords[0] + r * Math.sin(angle), coords[1] + r * Math.cos(angle) * 1.3], precision: 'approximate' };
     }
   }
 
   // 4. Fallback: Search center + radius jitter
   const angle = idx * goldenAngle;
   const r = 0.003 + (Math.sqrt(idx + 1) * 0.0025);
-  return [searchLat + r * Math.sin(angle), searchLon + r * Math.cos(angle) * 1.3];
+  return { coords: [searchLat + r * Math.sin(angle), searchLon + r * Math.cos(angle) * 1.3], precision: 'approximate' };
 }
 
 export async function GET(request: Request) {
@@ -307,7 +309,7 @@ export async function GET(request: Request) {
 
       for (let idx = 0; idx < rawJobs.length; idx++) {
         const item = rawJobs[idx];
-        const [jobLat, jobLon] = resolveJobCoordinates(item, lat, lon, idx);
+        const { coords: [jobLat, jobLon], precision } = resolveJobCoordinates(item, lat, lon, idx);
 
         const exactDist = calculateDistanceKm(lat, lon, jobLat, jobLon);
         const distKm = Math.round(exactDist * 100) / 100;
@@ -356,6 +358,8 @@ export async function GET(request: Request) {
           sources.push({ name: 'Arbeitgeber-Direktlink', url: item.externeUrl, isPrimary: false });
         }
 
+        const pubDateStr = item.aktuelleVeroeffentlichungsdatum || new Date().toISOString().split('T')[0];
+
         processedJobs.push({
           id: item.refnr || `ba-${idx}`,
           title: item.titel || item.beruf || 'Stellenangebot',
@@ -366,10 +370,11 @@ export async function GET(request: Request) {
           exact_distance: exactDist,
           distance: distKm,
           distance_text: distText,
+          location_precision: precision,
           type: typeStr,
           redirect_url: redirectUrl,
           sources: sources,
-          published_date: item.aktuelleVeroeffentlichungsdatum || new Date().toISOString().split('T')[0],
+          published_date: pubDateStr,
           beruf: item.beruf || item.titel,
           rating: (4.0 + (idx % 10) * 0.1).toFixed(1),
           company_size: idx % 2 === 0 ? '500 - 2.500 Mitarbeiter' : '10.000+ Mitarbeiter',
@@ -456,6 +461,28 @@ export async function GET(request: Request) {
 function enrichJobWithMetrics(job: Job, originLat: number, originLon: number): Job {
   const dist = job.exact_distance ?? calculateDistanceKm(originLat, originLon, job.latitude, job.longitude);
   
+  // Calculate published_days_old
+  if (job.published_date) {
+    try {
+      const pub = new Date(job.published_date);
+      const now = new Date();
+      if (!isNaN(pub.getTime())) {
+        const diff = Math.abs(now.getTime() - pub.getTime());
+        job.published_days_old = Math.floor(diff / (1000 * 60 * 60 * 24));
+      } else {
+        job.published_days_old = 3;
+      }
+    } catch {
+      job.published_days_old = 3;
+    }
+  } else {
+    job.published_days_old = 3;
+  }
+
+  if (!job.location_precision) {
+    job.location_precision = 'exact';
+  }
+
   // Commute times in minutes
   const drivingMins = Math.max(1, Math.round((dist / 42) * 60 + 3));
   const transitMins = Math.max(3, Math.round((dist / 26) * 60 + 8));

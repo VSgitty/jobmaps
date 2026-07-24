@@ -7,6 +7,8 @@ import Link from 'next/link';
 import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getJobCategory } from '@/lib/job-categories';
+import { calculateJobAge } from '@/lib/job-age-utils';
+import { getCompanyStyle } from '@/lib/company-color-utils';
 
 // Type definitions for our jobs and routing
 export type RouteMode = 'driving' | 'walking' | 'cycling' | 'transit';
@@ -50,6 +52,8 @@ export interface Job {
   redirect_url?: string;
   sources?: JobSource[];
   published_date?: string;
+  published_days_old?: number;
+  location_precision?: 'exact' | 'approximate';
   beruf?: string;
   rating?: string;
   company_size?: string;
@@ -804,6 +808,8 @@ function MapViewContent() {
                 {/* VIEW MODE 1: JOBS LIST */}
                 {viewMode === 'jobs' && filteredJobs.map((job: Job) => {
                   const cat = getJobCategory(job.title, job.company_name, job.beruf);
+                  const companyStyle = getCompanyStyle(job.company_name);
+                  const ageInfo = calculateJobAge(job.published_date, job.published_days_old);
                   const CatIcon = cat.icon;
                   const isHovered = hoveredJobId === job.id;
                   const bgImage = job.images?.[0] || 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&q=80';
@@ -817,6 +823,7 @@ function MapViewContent() {
                     <div 
                       key={job.id}
                       className={`relative rounded-2xl p-4 cursor-pointer transition-all duration-300 shadow-md hover:shadow-2xl overflow-hidden border group ${isHovered ? 'ring-2 ring-primary border-primary bg-slate-900/95 scale-[1.02]' : 'border-slate-800 bg-slate-900/80 hover:border-primary/60 hover:bg-slate-900/90'}`}
+                      style={{ borderLeftColor: companyStyle.hexColor, borderLeftWidth: '4px' }}
                       onClick={() => setSelectedJob(job)}
                       onMouseEnter={() => setHoveredJobId(job.id)}
                       onMouseLeave={() => setHoveredJobId(null)}
@@ -841,8 +848,14 @@ function MapViewContent() {
                           </span>
 
                           <div className="flex items-center gap-1.5">
+                            {/* Job Age Status Badge (🟢, 🟡, 🟠, 🔴) */}
+                            <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border flex items-center gap-1 shadow-sm ${ageInfo.badgeBg} ${ageInfo.badgeBorder} ${ageInfo.badgeText}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${ageInfo.dotColor}`} />
+                              <span>{ageInfo.label}</span>
+                            </span>
+
                             <span className="text-[10px] font-black bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30 shadow-sm">
-                              🎯 {fitScore}% Match
+                              🎯 {fitScore}%
                             </span>
 
                             <span className="text-[11px] font-extrabold text-blue-300 bg-slate-950/90 backdrop-blur-md px-2.5 py-1 rounded-lg border border-slate-700/80 flex items-center gap-1 shadow-sm">
@@ -862,7 +875,7 @@ function MapViewContent() {
                             {job.title}
                           </h3>
                           <div className="text-xs text-slate-400 font-medium mt-1 flex items-center gap-2">
-                            <span className="font-bold text-slate-200 truncate max-w-[200px]">{job.company_name}</span>
+                            <span className="font-bold text-slate-200 truncate max-w-[200px]" style={{ color: companyStyle.hexColor }}>{job.company_name}</span>
                             {job.rating && (
                               <span className="text-[10px] text-amber-400 font-extrabold bg-amber-500/15 px-1.5 py-0.5 rounded border border-amber-500/20 flex items-center gap-0.5">
                                 ⭐ {job.rating}
@@ -907,10 +920,12 @@ function MapViewContent() {
 
                 {/* VIEW MODE 2: EMPLOYERS DISCOVERY MODE */}
                 {viewMode === 'employers' && groupedEmployers.map((emp: GroupedEmployer) => {
+                  const companyStyle = getCompanyStyle(emp.name);
                   return (
                     <div 
                       key={emp.id}
                       className="bg-slate-900/90 border border-slate-800 hover:border-blue-500/60 rounded-2xl p-4 transition-all duration-300 hover:shadow-xl space-y-3 cursor-pointer group"
+                      style={{ borderLeftColor: companyStyle.hexColor, borderLeftWidth: '4px' }}
                       onClick={() => {
                         if (emp.jobs[0]) {
                           setSelectedJob(emp.jobs[0]);
@@ -919,8 +934,8 @@ function MapViewContent() {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-extrabold text-lg shrink-0">
-                            🏢
+                          <div className="w-12 h-12 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center font-extrabold text-sm shrink-0 shadow-inner" style={{ color: companyStyle.hexColor }}>
+                            {companyStyle.shortLogo}
                           </div>
                           <div>
                             <h3 className="font-extrabold text-white text-base group-hover:text-blue-400 transition-colors">
@@ -945,34 +960,38 @@ function MapViewContent() {
                       </div>
 
                       <div className="space-y-1.5 pt-1">
-                        {emp.jobs.slice(0, 3).map((j: Job) => (
-                          <div 
-                            key={j.id} 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedJob(j);
-                            }}
-                            className="bg-slate-950/60 hover:bg-blue-950/40 p-2 rounded-xl border border-slate-800 hover:border-blue-500/40 flex items-center justify-between text-xs text-slate-200 transition-colors"
-                          >
-                            <span className="font-semibold truncate max-w-[240px]">{j.title}</span>
-                            <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded">
-                              {j.type || 'Vollzeit'}
-                            </span>
-                          </div>
-                        ))}
+                        {emp.jobs.slice(0, 4).map((j: Job) => {
+                          const ageInfo = calculateJobAge(j.published_date, j.published_days_old);
+                          return (
+                            <div 
+                              key={j.id} 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedJob(j);
+                              }}
+                              className="bg-slate-950/60 hover:bg-blue-950/40 p-2 rounded-xl border border-slate-800 hover:border-blue-500/40 flex items-center justify-between text-xs text-slate-200 transition-colors cursor-pointer"
+                            >
+                              <span className="font-semibold truncate max-w-[200px]">{j.title}</span>
+                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border flex items-center gap-1 shrink-0 ${ageInfo.badgeBg} ${ageInfo.badgeBorder} ${ageInfo.badgeText}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${ageInfo.dotColor}`} />
+                                <span>{ageInfo.label}</span>
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
                 })}
               </div>
             </>
-          ) : (
+          ) : selectedJob ? (
             // Detail View
             <div className="flex flex-col h-full bg-card">
               <div className="p-3.5 border-b border-border flex items-center justify-between bg-card/80 backdrop-blur shrink-0">
                 <button 
                   onClick={() => setSelectedJob(null)} 
-                  className="text-secondary hover:text-text transition-colors flex items-center gap-1.5 text-xs font-semibold"
+                  className="text-secondary hover:text-text transition-colors flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
                 >
                   <ChevronLeft className="w-4 h-4 text-primary" /> Zurück zur Übersicht
                 </button>
@@ -1298,7 +1317,7 @@ function MapViewContent() {
                 </div>
               </div>
             </div>
-          )}
+          ) : null}
         </aside>
 
         {/* Map Area */}
