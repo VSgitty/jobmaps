@@ -16,6 +16,12 @@ export interface UserLocation {
   address?: string;
 }
 
+export interface JobSource {
+  name: string;
+  url: string;
+  isPrimary?: boolean;
+}
+
 export interface Job {
   id: string;
   title: string;
@@ -30,6 +36,7 @@ export interface Job {
   salary_min?: string;
   salary_max?: string;
   redirect_url?: string;
+  sources?: JobSource[];
   published_date?: string;
   beruf?: string;
   rating?: string;
@@ -564,6 +571,15 @@ function MapViewContent() {
                             {job.type || "Vollzeit"}
                           </span>
                         </div>
+
+                        {/* Multi-source Badges */}
+                        {job.sources && job.sources.length > 0 && (
+                          <div className="pt-1">
+                            <span className="text-[10px] font-semibold text-blue-300 bg-blue-500/15 border border-blue-500/25 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                              🔗 {job.sources.length === 1 ? job.sources[0].name : `${job.sources.length} Quellen: ${job.sources.map(s => s.name).join(', ')}`}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -712,9 +728,42 @@ function MapViewContent() {
                   </div>
                 </div>
 
-                {/* Apply Button */}
+                {/* Available Sources & Direct Links */}
+                <div className="space-y-2.5 pt-3 border-t border-border">
+                  <h3 className="text-xs font-bold text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                    <ExternalLink className="w-4 h-4 text-blue-400" /> Verfügbare Quellen & Links ({selectedJob.sources?.length || 1})
+                  </h3>
+                  <div className="space-y-2">
+                    {(selectedJob.sources || [{ name: 'Arbeitsagentur', url: selectedJob.redirect_url || 'https://www.arbeitsagentur.de/jobsuche/', isPrimary: true }]).map((src, i) => (
+                      <a
+                        key={i}
+                        href={src.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-between p-3 rounded-xl bg-surface border border-border hover:border-primary/60 transition-all group"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-2 h-2 rounded-full bg-blue-400 group-hover:animate-ping" />
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold text-text group-hover:text-primary transition-colors">
+                              {src.name}
+                            </span>
+                            <span className="text-[10px] text-secondary truncate max-w-[200px]">
+                              {src.url}
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-xs font-bold text-primary flex items-center gap-1 bg-primary/10 px-2.5 py-1 rounded-lg border border-primary/20 group-hover:bg-primary group-hover:text-white transition-all">
+                          Aufrufen <ExternalLink className="w-3 h-3" />
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Main Apply Button */}
                 <div className="pt-4 sticky bottom-0 bg-card py-3 border-t border-border mt-4">
-                  <a href={selectedJob.redirect_url || '#'} target="_blank" rel="noopener noreferrer" className="block">
+                  <a href={selectedJob.redirect_url || selectedJob.sources?.[0]?.url || '#'} target="_blank" rel="noopener noreferrer" className="block">
                     <Button className="w-full bg-primary hover:bg-primary/90 text-white flex items-center justify-center gap-2 py-5 rounded-xl font-bold shadow-xl text-sm">
                       Jetzt bewerben / Stelle aufrufen <ExternalLink className="w-4 h-4" />
                     </Button>
