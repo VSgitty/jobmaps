@@ -2,8 +2,7 @@
 
 import { Header } from '@/components/layout/header';
 import { JobMap } from '@/maps/job-map';
-import { RouteMode } from './map/page';
-import { MapPin, Navigation, Clock, Target, TrendingUp, Building2, Users, Search, Car, Bike, Bus, Sparkles, ArrowRight, ShieldCheck, Compass } from 'lucide-react';
+import { MapPin, Navigation, Clock, Target, TrendingUp, Building2, Users, Search, Sparkles, ArrowRight, ShieldCheck, Compass } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -18,21 +17,6 @@ export default function Home() {
 
   // Animated counters state
   const [counts, setCounts] = useState({ jobs: 0, companies: 0, applicants: 0 });
-  const [activeMode, setActiveMode] = useState<RouteMode>('driving');
-  const [isAutoPlay, setIsAutoPlay] = useState(true);
-
-  // Auto-play commercial loop between travel modes
-  useEffect(() => {
-    if (!isAutoPlay) return;
-    const modes: RouteMode[] = ['driving', 'transit', 'cycling', 'walking'];
-    const timer = setInterval(() => {
-      setActiveMode(prev => {
-        const nextIdx = (modes.indexOf(prev) + 1) % modes.length;
-        return modes[nextIdx];
-      });
-    }, 3500);
-    return () => clearInterval(timer);
-  }, [isAutoPlay]);
 
   useEffect(() => {
     // Counter animation on mount
@@ -118,7 +102,6 @@ export default function Home() {
               interactive={false} 
               userLocation={{ latitude: 50.1109, longitude: 8.6821, address: 'Frankfurt am Main' }}
               showDemoShowcase={true}
-              activeDemoMode={activeMode}
               radiusKm={15}
             />
           </div>
@@ -136,16 +119,25 @@ export default function Home() {
               <span>• Deutschlands 1. interaktive Job-Karte</span>
             </div>
             
-            <h1 className="text-4xl sm:text-6xl lg:text-6xl font-extrabold tracking-tight text-white leading-[1.12] mb-6">
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.12] mb-6">
               Finde Arbeit, die <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-sky-300 to-indigo-300">
                 exakt in dein Leben passt.
               </span>
             </h1>
             
-            <p className="text-base sm:text-lg text-slate-300 mb-8 leading-relaxed font-normal backdrop-blur-md bg-slate-950/40 p-4 rounded-2xl border border-white/5">
-              Entdecke Top-Arbeitgeber direkt in deiner Umgebung, vergleiche echte Pendelzeiten mit Auto, Fahrrad oder ÖPNV und starte mit nur einem Klick.
-            </p>
+            {/* Artistic Seamless Glass Subtitle Box (Orangener Kasten) */}
+            <div className="relative backdrop-blur-2xl bg-slate-900/60 p-5 rounded-3xl border border-blue-500/20 shadow-2xl shadow-blue-950/40 mb-8 max-w-xl group overflow-hidden">
+              <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-blue-400 via-sky-400 to-indigo-500 rounded-l-3xl" />
+              <div className="flex items-start gap-3.5 pl-2">
+                <div className="w-9 h-9 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0 mt-0.5 shadow-inner">
+                  <Compass className="w-5 h-5" />
+                </div>
+                <p className="text-sm sm:text-base text-slate-200 leading-relaxed font-medium">
+                  Entdecke Top-Arbeitgeber direkt in deiner Umgebung, vergleiche echte Pendelzeiten mit Auto, Fahrrad oder ÖPNV und starte mit nur einem Klick.
+                </p>
+              </div>
+            </div>
 
             {/* Glass Search Bar */}
             <div className="w-full mb-6 relative">
@@ -210,106 +202,11 @@ export default function Home() {
                 <button
                   key={term}
                   onClick={() => handleQuickSearch(term)}
-                  className="px-3 py-1 rounded-full bg-slate-900/60 border border-slate-800 text-slate-300 hover:text-white hover:border-blue-500/40 hover:bg-blue-950/40 transition-all text-xs"
+                  className="px-3 py-1 rounded-full bg-slate-900/60 border border-slate-800 text-slate-300 hover:text-white hover:border-blue-500/40 hover:bg-blue-950/40 transition-all text-xs cursor-pointer"
                 >
                   {term}
                 </button>
               ))}
-            </div>
-          </div>
-
-          {/* Right: Commercial Ad-Style Showcase Controller */}
-          <div className="flex-1 w-full max-w-md relative hidden lg:block">
-            <div className="glass-card rounded-3xl p-6 shadow-2xl border border-slate-800/80 relative overflow-hidden backdrop-blur-2xl">
-              <div className="absolute -top-12 -right-12 w-40 h-40 bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
-
-              {/* Commercial Badge Header */}
-              <div className="flex items-center justify-between mb-5 pb-4 border-b border-slate-800/80">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
-                    <Compass className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-extrabold text-white tracking-tight uppercase">Core Feature Demo</h3>
-                    <p className="text-[10px] text-slate-400">Live Routen & Verkehrsmittel auf der Karte</p>
-                  </div>
-                </div>
-                
-                {/* Auto-Play Toggle */}
-                <button
-                  onClick={() => setIsAutoPlay(!isAutoPlay)}
-                  className={`px-3 py-1 rounded-full text-[10px] font-bold border transition-all flex items-center gap-1.5 cursor-pointer ${isAutoPlay ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm' : 'bg-slate-800 text-slate-400 border-slate-700'}`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${isAutoPlay ? 'bg-emerald-400 animate-ping' : 'bg-slate-500'}`} />
-                  {isAutoPlay ? 'Auto-Loop ▶️' : 'Manuell ⏸️'}
-                </button>
-              </div>
-
-              {/* Travel Mode Pills / Tabs */}
-              <div className="grid grid-cols-4 gap-2 mb-5">
-                {[
-                  { id: 'driving', name: 'Auto', icon: Car, color: 'text-blue-400', time: '12 Min', bg: 'bg-blue-500/20 border-blue-500/40' },
-                  { id: 'transit', name: 'ÖPNV', icon: Bus, color: 'text-purple-400', time: '18 Min', bg: 'bg-purple-500/20 border-purple-500/40' },
-                  { id: 'cycling', name: 'Fahrrad', icon: Bike, color: 'text-amber-400', time: '24 Min', bg: 'bg-amber-500/20 border-amber-500/40' },
-                  { id: 'walking', name: 'Zu Fuß', icon: Navigation, color: 'text-emerald-400', time: '35 Min', bg: 'bg-emerald-500/20 border-emerald-500/40' },
-                ].map((mode) => {
-                  const IconComp = mode.icon;
-                  const isActive = activeMode === mode.id;
-
-                  return (
-                    <button
-                      key={mode.id}
-                      onClick={() => { setActiveMode(mode.id as RouteMode); setIsAutoPlay(false); }}
-                      className={`p-2.5 rounded-2xl border flex flex-col items-center justify-center transition-all cursor-pointer ${isActive ? `${mode.bg} ring-2 ring-blue-500/50 scale-105 shadow-xl` : 'bg-slate-900/60 border-slate-800/80 text-slate-400 hover:border-slate-700 hover:text-white'}`}
-                    >
-                      <IconComp className={`w-4 h-4 mb-1 ${mode.color}`} />
-                      <span className="text-[11px] font-black text-white">{mode.time}</span>
-                      <span className="text-[9px] font-semibold text-slate-400">{mode.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Dynamic Feature Live Banner */}
-              <div className="bg-slate-900/90 rounded-2xl p-4 border border-slate-800 space-y-3 relative overflow-hidden">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
-                    <span className="text-xs font-extrabold text-white">
-                      {activeMode === 'driving' && '🚗 Autofahrt mit Stau-Analyse'}
-                      {activeMode === 'transit' && '🚆 Direktverbindung mit ÖPNV (S-Bahn)'}
-                      {activeMode === 'cycling' && '🚴 Fahrradweg ab deiner Haustür'}
-                      {activeMode === 'walking' && '🚶 Entspannter Fußweg zur Stelle'}
-                    </span>
-                  </div>
-                  <span className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20">
-                    Echtzeit
-                  </span>
-                </div>
-
-                <p className="text-xs text-slate-300 leading-relaxed font-normal">
-                  {activeMode === 'driving' && 'Echte Fahrtzeiten auf der Karte inklusive Ampel- und Feierabendverkehr-Prognosen.'}
-                  {activeMode === 'transit' && 'Live-Taktung der öffentlichen Verkehrsmittel mit Fußweg zur nächsten Haltestelle.'}
-                  {activeMode === 'cycling' && 'Sichere und grüne Radwege für eine frische, gesunde Anfahrt am Morgen.'}
-                  {activeMode === 'walking' && 'Kurze Wege direkt vor deiner Haustür in exakten Gehminuten und Metern.'}
-                </p>
-
-                {/* Counter Footer inside Card */}
-                <div className="pt-3 border-t border-slate-800/80 grid grid-cols-3 gap-2 text-center">
-                  <div>
-                    <div className="text-sm font-black text-white">{counts.jobs.toLocaleString('de-DE')}</div>
-                    <div className="text-[9px] text-slate-400 font-medium">Stellen auf Karte</div>
-                  </div>
-                  <div>
-                    <div className="text-sm font-black text-white">{counts.companies.toLocaleString('de-DE')}</div>
-                    <div className="text-[9px] text-slate-400 font-medium">Arbeitgeber</div>
-                  </div>
-                  <div>
-                    <div className="text-sm font-black text-blue-400">+4.200</div>
-                    <div className="text-[9px] text-slate-400 font-medium">Neu heute</div>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>

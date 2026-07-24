@@ -410,7 +410,6 @@ export function JobMap({
 
             {/* Glowing Demo Route Lines */}
             {demoTargets.map((t, idx) => {
-              const isSelectedMode = !activeDemoMode || activeDemoMode === t.mode;
               return (
                 <Source key={`demo-src-${idx}`} type="geojson" data={{
                   type: 'Feature',
@@ -425,8 +424,8 @@ export function JobMap({
                     type="line"
                     paint={{
                       'line-color': '#000000',
-                      'line-width': isSelectedMode ? 8 : 3,
-                      'line-opacity': isSelectedMode ? 0.4 : 0.1
+                      'line-width': 8,
+                      'line-opacity': 0.45
                     }}
                   />
                   <Layer
@@ -434,8 +433,8 @@ export function JobMap({
                     type="line"
                     paint={{
                       'line-color': t.color,
-                      'line-width': isSelectedMode ? 5 : 2,
-                      'line-opacity': isSelectedMode ? 0.95 : 0.25,
+                      'line-width': 5,
+                      'line-opacity': 0.95,
                       'line-dasharray': t.mode === 'walking' ? [2, 1] : [1, 0]
                     }}
                   />
@@ -445,12 +444,11 @@ export function JobMap({
 
             {/* Target Destination Badges */}
             {demoTargets.map((t, idx) => {
-              const isSelectedMode = !activeDemoMode || activeDemoMode === t.mode;
               return (
                 <Marker key={`target-badge-${idx}`} longitude={t.target[0]} latitude={t.target[1]}>
-                  <div className={`flex flex-col items-center pointer-events-none transition-all duration-300 ${isSelectedMode ? 'scale-110 opacity-100 z-30' : 'scale-90 opacity-40 z-10'}`}>
+                  <div className="flex flex-col items-center pointer-events-none transition-all duration-300 scale-110 opacity-100 z-30">
                     <div 
-                      className="px-3 py-1.5 rounded-2xl border-2 border-white text-white shadow-2xl text-xs font-extrabold flex flex-col items-center text-center"
+                      className="px-3.5 py-2 rounded-2xl border-2 border-white text-white shadow-2xl text-xs font-extrabold flex flex-col items-center text-center backdrop-blur-md"
                       style={{ backgroundColor: t.color }}
                     >
                       <span className="font-black text-white">{t.name}</span>
@@ -463,9 +461,6 @@ export function JobMap({
 
             {/* Moving Animated Vehicle / Traveler Markers */}
             {demoTargets.map((t, idx) => {
-              const isSelectedMode = !activeDemoMode || activeDemoMode === t.mode;
-              if (!isSelectedMode) return null;
-
               const curLng = demoHomeCoord[0] + (t.target[0] - demoHomeCoord[0]) * animProgress;
               const curLat = demoHomeCoord[1] + (t.target[1] - demoHomeCoord[1]) * animProgress;
               const IconComp = t.icon;
@@ -473,13 +468,13 @@ export function JobMap({
               return (
                 <Marker key={`vehicle-${idx}`} longitude={curLng} latitude={curLat}>
                   <div className="relative flex items-center justify-center -translate-x-1/2 -translate-y-1/2 pointer-events-none z-40">
-                    <div className="absolute w-10 h-10 rounded-full animate-ping opacity-75" style={{ backgroundColor: `${t.color}60` }} />
+                    <div className="absolute w-12 h-12 rounded-full animate-ping opacity-75" style={{ backgroundColor: `${t.color}60` }} />
                     <div 
-                      className="px-2.5 py-1.5 rounded-full border-2 border-white text-white font-black text-xs shadow-2xl flex items-center gap-1.5 animate-bounce backdrop-blur-md"
+                      className="px-3 py-1.5 rounded-full border-2 border-white text-white font-black text-xs shadow-2xl flex items-center gap-1.5 animate-bounce backdrop-blur-md"
                       style={{ backgroundColor: t.color }}
                     >
                       <IconComp className="w-4 h-4 text-white" />
-                      <span className="text-[11px] font-extrabold">{t.label.split('•')[0].trim()}</span>
+                      <span className="text-xs font-extrabold">{t.label.split('•')[0].trim()}</span>
                     </div>
                   </div>
                 </Marker>
