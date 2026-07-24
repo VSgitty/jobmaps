@@ -62,21 +62,75 @@ export interface Job {
 // Real German Major City Coordinates Cache for accurate job marker placement
 const GERMAN_CITY_COORDS: Record<string, [number, number]> = {
   'frankfurt': [50.1109, 8.6821],
-  'babenhausen': [50.0080, 8.9550],
-  'darmstadt': [49.8728, 8.6512],
+  'wiesbaden': [50.0826, 8.2400],
+  'mainz': [50.0000, 8.2711],
   'offenbach': [50.1006, 8.7667],
   'hanau': [50.1328, 8.9169],
   'aschaffenburg': [49.9738, 9.1481],
-  'wiesbaden': [50.0826, 8.2400],
-  'mainz': [50.0000, 8.2711],
+  'darmstadt': [49.8728, 8.6512],
+  'babenhausen': [50.0080, 8.9550],
   'dieburg': [49.8979, 8.8415],
   'groß-umstadt': [49.8680, 8.9287],
   'gross-umstadt': [49.8680, 8.9287],
+  'mannheim': [49.4875, 8.4660],
+  'heidelberg': [49.4122, 8.7100],
+  'worms': [49.6318, 8.3643],
+  'speyer': [49.3194, 8.4311],
+  'ludwigshafen': [49.4774, 8.4452],
+  'karlsruhe': [49.0069, 8.4037],
+  'stuttgart': [48.7758, 9.1829],
+  'heilbronn': [49.1427, 9.2109],
+  'ulm': [48.4011, 9.9876],
   'münchen': [48.1351, 11.5820],
+  'augsburg': [48.3705, 10.8978],
+  'nürnberg': [49.4521, 11.0767],
+  'würzburg': [49.7913, 9.9534],
+  'erlangen': [49.5962, 11.0042],
+  'regensburg': [49.0134, 12.1016],
+  'passau': [48.5665, 13.4319],
+  'ingolstadt': [48.7665, 11.4257],
+  'kassel': [51.3127, 9.4797],
+  'fulda': [50.5516, 9.6752],
+  'giessen': [50.5841, 8.6784],
+  'gießen': [50.5841, 8.6784],
+  'marburg': [50.8108, 8.7708],
+  'wetzlar': [50.5667, 8.5000],
+  'limburg': [50.3833, 8.0667],
+  'rüsselsheim': [49.9922, 8.4239],
+  'bad homburg': [50.2268, 8.6186],
+  'oberursel': [50.2014, 8.5772],
+  'rodgau': [50.0234, 8.8845],
+  'neu-isenburg': [50.0543, 8.6946],
+  'dreieich': [50.0167, 8.7000],
+  'langen': [49.9889, 8.6667],
+  'mörfelden': [49.9750, 8.5833],
+  'gross-gerau': [49.9167, 8.4833],
+  'groß-gerau': [49.9167, 8.4833],
+  'bensheim': [49.6814, 8.6178],
+  'heppenheim': [49.6414, 8.6433],
+  'weinheim': [49.5511, 8.6694],
+  'viernheim': [49.5383, 8.5808],
+  'lampertheim': [49.5939, 8.4681],
+  'bad vilbel': [50.1833, 8.7333],
+  'karben': [50.2333, 8.7667],
+  'maintal': [50.1500, 8.8333],
+  'bruchköbel': [50.1833, 8.9167],
+  'nidderau': [50.2500, 8.9167],
+  'gelnhausen': [50.2000, 9.1833],
+  'langenensbold': [50.1833, 9.0333],
+  'alzenau': [50.0833, 9.0667],
+  'seligenstadt': [50.0500, 8.9833],
+  'obertsleben': [50.0833, 8.8833],
+  'pfungstadt': [49.8058, 8.6028],
+  'griesheim': [49.8608, 8.5578],
+  'weiterstadt': [49.9042, 8.5917],
+  'reinheim': [49.8272, 8.8358],
+  'höchst': [49.8000, 8.9833],
+  'erbach': [49.6581, 8.9958],
+  'michelstadt': [49.6781, 9.0042],
   'berlin': [52.5200, 13.4050],
   'hamburg': [53.5511, 9.9937],
   'köln': [50.9375, 6.9603],
-  'stuttgart': [48.7758, 9.1829],
   'düsseldorf': [51.2277, 6.7735],
   'dortmund': [51.5136, 7.4653],
   'essen': [51.4556, 7.0116],
@@ -84,21 +138,7 @@ const GERMAN_CITY_COORDS: Record<string, [number, number]> = {
   'bremen': [53.0793, 8.8017],
   'dresden': [51.0504, 13.7373],
   'hannover': [52.3759, 9.7320],
-  'nürnberg': [49.4521, 11.0767],
-  'mannheim': [49.4875, 8.4660],
-  'karlsruhe': [49.0069, 8.4037],
-  'augsburg': [48.3705, 10.8978],
-  'kassel': [51.3127, 9.4797],
   'koblenz': [50.3569, 7.5890],
-  'fulda': [50.5516, 9.6752],
-  'giessen': [50.5841, 8.6784],
-  'gießen': [50.5841, 8.6784],
-  'marburg': [50.8108, 8.7708],
-  'wetzlar': [50.5667, 8.5000],
-  'rüsselsheim': [49.9922, 8.4239],
-  'bad homburg': [50.2268, 8.6186],
-  'rodgau': [50.0234, 8.8845],
-  'neu-isenburg': [50.0543, 8.6946],
   'langenhagen': [52.4485, 9.7397],
   'sulzbach': [50.1333, 8.5283],
 };
@@ -182,30 +222,39 @@ export async function GET(request: Request) {
       }
     }
 
-    // 2. Fetch real jobs from Arbeitsagentur Jobsuche API (size=100 is max per page)
-    // Fetch pages 1, 2, 3 concurrently to get up to 300 real jobs!
-    const pages = [1, 2, 3];
-    const fetchPromises = pages.map(async (page) => {
-      let baUrl = `https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs?wo=${encodeURIComponent(locationTerm)}&page=${page}&size=100`;
-      if (!isNationwide) {
-        baUrl += `&umkreis=${Math.min(200, Math.max(1, Math.round(radius)))}`;
-      }
-      if (query) {
-        baUrl += `&was=${encodeURIComponent(query)}`;
-      }
+    // 2. Fetch real jobs from Arbeitsagentur Jobsuche API
+    // For large radius (radius >= 30 km), query locationTerm AND major regional hubs in the radius concurrently
+    const queryLocations = [locationTerm];
+    if (radius >= 30 && !isNationwide) {
+      if (!locationTerm.toLowerCase().includes('frankfurt')) queryLocations.push('Frankfurt am Main');
+      if (radius >= 60 && !locationTerm.toLowerCase().includes('wiesbaden')) queryLocations.push('Wiesbaden');
+      if (radius >= 80 && !locationTerm.toLowerCase().includes('mannheim')) queryLocations.push('Mannheim');
+    }
 
-      const baRes = await fetch(baUrl, {
-        headers: {
-          'X-API-Key': 'jobboerse-jobsuche',
-          'User-Agent': 'JobMaps/1.0 (https://jobmaps.local)'
-        },
-        next: { revalidate: 300 }
-      });
+    const pages = [1, 2];
+    const fetchPromises = queryLocations.flatMap(loc => 
+      pages.map(async (page) => {
+        let baUrl = `https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs?wo=${encodeURIComponent(loc)}&page=${page}&size=100`;
+        if (!isNationwide) {
+          baUrl += `&umkreis=${Math.min(200, Math.max(1, Math.round(radius)))}`;
+        }
+        if (query) {
+          baUrl += `&was=${encodeURIComponent(query)}`;
+        }
 
-      if (!baRes.ok) return [];
-      const baData = await baRes.json();
-      return (baData.stellenangebote || []) as RawArbeitsagenturJob[];
-    });
+        const baRes = await fetch(baUrl, {
+          headers: {
+            'X-API-Key': 'jobboerse-jobsuche',
+            'User-Agent': 'JobMaps/1.0 (https://jobmaps.local)'
+          },
+          next: { revalidate: 300 }
+        });
+
+        if (!baRes.ok) return [];
+        const baData = await baRes.json();
+        return (baData.stellenangebote || []) as RawArbeitsagenturJob[];
+      })
+    );
 
     const resultsPages = await Promise.all(fetchPromises);
     const rawJobs = resultsPages.flat();
