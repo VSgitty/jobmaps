@@ -14,33 +14,8 @@ export interface CategoryInfo {
 export function getJobCategory(jobTitle: string = '', companyName: string = '', beruf: string = ''): CategoryInfo {
   const text = `${jobTitle} ${companyName} ${beruf}`.toLowerCase();
 
-  if (text.match(/software|developer|it|data|system|analyst|frontend|backend|fullstack|cloud|cyber|ki|ai|informatik|programm/)) {
-    return {
-      id: 'it',
-      name: 'IT & Tech',
-      color: '#3b82f6',
-      bgColor: 'bg-blue-500',
-      borderColor: 'border-blue-500',
-      textColor: 'text-blue-400',
-      badgeBg: 'bg-blue-500/15',
-      icon: Laptop
-    };
-  }
-
-  if (text.match(/verkäufer|drogerie|supermarkt|kaufmann|kauffrau|retail|filiale|kasse|dm|edeka|rewe|aldi|lidl|kaufland|filialleiter|store|markt/)) {
-    return {
-      id: 'retail',
-      name: 'Handel & Filiale',
-      color: '#10b981',
-      bgColor: 'bg-emerald-500',
-      borderColor: 'border-emerald-500',
-      textColor: 'text-emerald-400',
-      badgeBg: 'bg-emerald-500/15',
-      icon: ShoppingBag
-    };
-  }
-
-  if (text.match(/pflege|arzt|ärztin|medizin|gesundheit|klinik|mfa|krankenschwester|therapeut|pharma|apotheke/)) {
+  // 1. Medizin & Pflege (Checked first to prevent 'Pflegedienstleitung' from matching 'it' in Leitung)
+  if (text.match(/pflege|pfleger|pflegefachkraft|altenpflege|krankenpflege|arzt|ärztin|medizin|gesundheit|klinik|mfa|krankenschwester|therapeut|pharma|apotheke|hebamme|sanitäter/)) {
     return {
       id: 'medical',
       name: 'Medizin & Pflege',
@@ -53,7 +28,22 @@ export function getJobCategory(jobTitle: string = '', companyName: string = '', 
     };
   }
 
-  if (text.match(/mechatroniker|ingenieur|elektroniker|monteur|produktion|mechaniker|bau|handwerk|techniker|schlosser|schweißer/)) {
+  // 2. Handel & Filiale (Verkäufer, Netto, Edeka, REWE, Lidl, Aldi, Kassierer)
+  if (text.match(/verkäufer|verkaeufer|drogerie|supermarkt|kaufmann|kauffrau|retail|filiale|kasse|kassierer|dm|edeka|rewe|aldi|lidl|kaufland|netto|penny|filialleiter|store|markt|einzelhandel/)) {
+    return {
+      id: 'retail',
+      name: 'Handel & Filiale',
+      color: '#10b981',
+      bgColor: 'bg-emerald-500',
+      borderColor: 'border-emerald-500',
+      textColor: 'text-emerald-400',
+      badgeBg: 'bg-emerald-500/15',
+      icon: ShoppingBag
+    };
+  }
+
+  // 3. Industrie, Handwerk & Technik
+  if (text.match(/mechatroniker|ingenieur|elektroniker|monteur|produktion|mechaniker|bau|handwerk|techniker|schlosser|schweißer|schweisser|kälte|wärme|elektriker|maler|tischler|anlagenmechaniker/)) {
     return {
       id: 'crafts',
       name: 'Industrie & Handwerk',
@@ -66,7 +56,8 @@ export function getJobCategory(jobTitle: string = '', companyName: string = '', 
     };
   }
 
-  if (text.match(/logistik|fahrer|lager|spedition|zusteller|kraftfahrer|staplerfahrer|lagerist|kurier/)) {
+  // 4. Lager & Logistik
+  if (text.match(/logistik|fahrer|postbote|zusteller|paket|lager|spedition|kraftfahrer|staplerfahrer|lagerist|kurier|transport|auslieferung/)) {
     return {
       id: 'logistics',
       name: 'Lager & Logistik',
@@ -79,7 +70,22 @@ export function getJobCategory(jobTitle: string = '', companyName: string = '', 
     };
   }
 
-  if (text.match(/projektleiter|beratung|consulting|vertrieb|buchhalter|management|hr|personal|finanz|marketing|büro|assistenz/)) {
+  // 5. IT & Software (Using strict word boundaries \b for short terms 'it', 'ai', 'ki')
+  if (text.match(/\b(it|ai|ki)\b|software|developer|devops|data|systemadmin|administrator|analyst|frontend|backend|fullstack|cloud|cyber|informatik|programmierer|webentwickler/)) {
+    return {
+      id: 'it',
+      name: 'IT & Tech',
+      color: '#3b82f6',
+      bgColor: 'bg-blue-500',
+      borderColor: 'border-blue-500',
+      textColor: 'text-blue-400',
+      badgeBg: 'bg-blue-500/15',
+      icon: Laptop
+    };
+  }
+
+  // 6. Büro, Management & Verwaltung
+  if (text.match(/projektleiter|beratung|consulting|vertrieb|buchhalter|management|hr|personal|finanz|marketing|büro|buero|assistenz|sekretär|sachbearbeiter/)) {
     return {
       id: 'business',
       name: 'Büro & Management',

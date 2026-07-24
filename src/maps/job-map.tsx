@@ -189,24 +189,16 @@ export function JobMap({
         });
       }
     } else if (prevSelectedJobIdRef.current && !selectedJob) {
-      // User clicked away / deselected: smoothly return to 2D flat view (pitch: 0)
+      // User clicked away / deselected: smoothly return to 2D flat view (pitch: 0) without zooming far away!
       prevSelectedJobIdRef.current = null;
 
-      const targetCenter = userLocation 
-        ? [userLocation.longitude, userLocation.latitude] 
-        : mapRef.current.getCenter().toArray();
-
-      const targetZoom = userLocation 
-        ? Math.min(15, Math.max(9, 15.5 - Math.log2(radiusKm / 1.5)))
-        : mapRef.current.getZoom();
-
-      mapRef.current.easeTo({
-        center: targetCenter as [number, number],
-        zoom: targetZoom,
-        pitch: 0,   // Return to normal 2D flat view
-        bearing: 0, // Reset bearing to north
-        duration: 900
-      });
+      if (mapRef.current) {
+        mapRef.current.easeTo({
+          pitch: 0,   // Return to normal 2D flat view
+          bearing: 0, // Reset bearing to north
+          duration: 800
+        });
+      }
     }
   }, [selectedJob, userLocation, radiusKm]);
 
@@ -514,6 +506,17 @@ export function JobMap({
           const { cluster: isCluster, point_count: pointCount, jobId, job } = cluster.properties;
 
           if (isCluster) {
+            // Check if hoveredJobId is inside this cluster
+            let isHoveredCluster = false;
+            if (hoveredJobId) {
+              try {
+                const leaves = supercluster.getLeaves(cluster.id as number, Infinity);
+                isHoveredCluster = leaves.some(leaf => leaf.properties?.jobId === hoveredJobId);
+              } catch {
+                isHoveredCluster = false;
+              }
+            }
+
             return (
               <Marker
                 key={`cluster-${cluster.id}`}
@@ -531,15 +534,20 @@ export function JobMap({
                     duration: 500
                   });
                 }}
+                style={{ zIndex: isHoveredCluster ? 100 : 20 }}
               >
                 <div 
-                  className="flex items-center justify-center bg-primary text-white rounded-full border-2 border-white shadow-xl cursor-pointer hover:scale-110 transition-transform font-bold text-sm"
-                  style={{
-                    width: `${35 + Math.min(pointCount / jobs.length, 1) * 20}px`,
-                    height: `${35 + Math.min(pointCount / jobs.length, 1) * 20}px`,
-                  }}
+                  className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-white shadow-2xl backdrop-blur-md cursor-pointer transition-all duration-300 group ${isHoveredCluster ? 'scale-125 z-50 ring-4 ring-blue-400 bg-blue-600' : 'bg-slate-900/90 hover:scale-110 hover:bg-blue-600'}`}
                 >
-                  {pointCount}
+                  {isHoveredCluster && (
+                    <div className="absolute -inset-1 rounded-full bg-blue-500/50 animate-ping pointer-events-none" />
+                  )}
+                  <div className="w-5 h-5 rounded-full bg-blue-500/30 flex items-center justify-center text-blue-300 group-hover:text-white">
+                    <Layers className="w-3 h-3" />
+                  </div>
+                  <span className="text-xs font-black text-white whitespace-nowrap">
+                    {pointCount} Jobs
+                  </span>
                 </div>
               </Marker>
             );

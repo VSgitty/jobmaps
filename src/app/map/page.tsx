@@ -54,6 +54,26 @@ export interface Job {
   };
 }
 
+function getSalaryEstimate(title: string = '', type: string = ''): string {
+  const t = title.toLowerCase();
+  if (t.match(/software|developer|it|engineer|fullstack|cloud/)) {
+    return '💶 55.000 € - 82.000 € / Jahr';
+  }
+  if (t.match(/pflege|arzt|medizin|mfa|krankenschwester/)) {
+    return '💶 38.000 € - 52.000 € / Jahr';
+  }
+  if (t.match(/verkäufer|verkaeufer|filiale|kassierer|retail|supermarkt|einzelhandel|markt/)) {
+    return type.includes('Teilzeit') || type.includes('Minijob') ? '💶 14,50 € - 18,00 € / Std.' : '💶 28.000 € - 38.000 € / Jahr';
+  }
+  if (t.match(/mechatroniker|monteur|elektroniker|mechaniker|handwerk/)) {
+    return '💶 36.000 € - 48.000 € / Jahr';
+  }
+  if (t.match(/logistik|fahrer|lager|zusteller|postbote/)) {
+    return '💶 26.000 € - 34.000 € / Jahr';
+  }
+  return '💶 Attraktives Gehalt nach Tarif';
+}
+
 function MapViewContent() {
   const searchParams = useSearchParams();
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -512,74 +532,88 @@ function MapViewContent() {
                   const CatIcon = cat.icon;
                   const isHovered = hoveredJobId === job.id;
                   const bgImage = job.images?.[0] || 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&q=80';
+                  
+                  // Calculate route time preview (Driving / Transit)
+                  const distKm = job.exact_distance ?? job.distance ?? 1;
+                  const driveTime = job.routes?.driving || `${Math.max(1, Math.round((distKm / 50) * 60))} Min`;
+                  const salaryStr = getSalaryEstimate(job.title, job.type || '');
 
                   return (
                     <div 
                       key={job.id}
-                      className={`relative rounded-2xl p-4 cursor-pointer transition-all duration-200 shadow-md hover:shadow-2xl overflow-hidden border-2 group ${isHovered ? 'ring-2 ring-primary border-primary scale-[1.02]' : 'border-border/60 hover:border-primary/60'}`}
+                      className={`relative rounded-2xl p-4 cursor-pointer transition-all duration-300 shadow-md hover:shadow-2xl overflow-hidden border group ${isHovered ? 'ring-2 ring-primary border-primary bg-slate-900/95 scale-[1.02]' : 'border-slate-800 bg-slate-900/80 hover:border-primary/60 hover:bg-slate-900/90'}`}
                       onClick={() => setSelectedJob(job)}
                       onMouseEnter={() => setHoveredJobId(job.id)}
                       onMouseLeave={() => setHoveredJobId(null)}
                     >
-                      {/* Background Workplace Photo with Dark Gradient Overlay */}
+                      {/* Company Image Background Overlay */}
                       <div className="absolute inset-0 z-0 pointer-events-none">
                         <img 
                           src={bgImage} 
                           alt={job.company_name} 
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-25"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-20"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-r from-card via-card/95 to-card/80" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/95 to-slate-950/80" />
                       </div>
 
-                      {/* Content Overlay */}
-                      <div className="relative z-10 space-y-2.5">
-                        <div className="flex items-center justify-between">
+                      {/* Content Container */}
+                      <div className="relative z-10 space-y-3">
+                        {/* Header Badge Row */}
+                        <div className="flex items-center justify-between gap-2">
                           <span 
-                            className="text-[11px] font-bold px-2.5 py-1 rounded-lg text-white flex items-center gap-1.5 shadow-sm"
+                            className="text-[11px] font-extrabold px-2.5 py-1 rounded-lg text-white flex items-center gap-1.5 shadow-sm"
                             style={{ backgroundColor: cat.color }}
                           >
-                            <CatIcon className="w-3.5 h-3.5" />
+                            <CatIcon className="w-3.5 h-3.5 text-white" />
                             {cat.name}
                           </span>
-                          {(job.distance_text || job.distance !== undefined) && (
-                            <span className="text-xs font-bold text-white bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 flex items-center gap-1 shadow-sm">
-                              📍 {job.distance_text || `${job.distance} km`}
-                            </span>
-                          )}
+
+                          <span className="text-[11px] font-extrabold text-blue-300 bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-lg border border-slate-700/80 flex items-center gap-1 shadow-sm">
+                            <Car className="w-3 h-3 text-blue-400" />
+                            <span>{driveTime}</span>
+                            <span className="text-slate-500">•</span>
+                            <span>{job.distance_text || `${distKm.toFixed(1)} km`}</span>
+                          </span>
                         </div>
                         
+                        {/* Title & Company */}
                         <div>
-                          <h3 className="font-bold text-text text-sm leading-snug line-clamp-2 group-hover:text-primary transition-colors">
+                          <h3 className="font-extrabold text-white text-sm sm:text-base leading-snug line-clamp-2 group-hover:text-blue-400 transition-colors">
                             {job.title}
                           </h3>
-                          <div className="text-xs text-secondary font-medium mt-0.5 flex items-center gap-1.5">
-                            <span className="font-semibold text-text/90 truncate">{job.company_name}</span>
+                          <div className="text-xs text-slate-400 font-medium mt-1 flex items-center gap-2">
+                            <span className="font-bold text-slate-200 truncate max-w-[200px]">{job.company_name}</span>
                             {job.rating && (
-                              <span className="text-[10px] text-amber-400 font-bold bg-amber-500/15 px-1.5 py-0.5 rounded">
+                              <span className="text-[10px] text-amber-400 font-extrabold bg-amber-500/15 px-1.5 py-0.5 rounded border border-amber-500/20 flex items-center gap-0.5">
                                 ⭐ {job.rating}
                               </span>
                             )}
                           </div>
                         </div>
-                        
-                        <div className="text-xs text-secondary flex items-center justify-between pt-2 border-t border-border/40">
-                          <div className="flex items-center gap-1 truncate max-w-[200px]">
-                            <MapPin className="w-3 h-3 shrink-0 text-primary" /> 
-                            <span className="truncate">{job.location_name}</span>
-                          </div>
-                          <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
+
+                        {/* Salary & Type Pill */}
+                        <div className="flex items-center justify-between gap-2 pt-1">
+                          <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
+                            {salaryStr}
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-300 bg-slate-800/80 px-2 py-1 rounded-md border border-slate-700/60">
                             {job.type || "Vollzeit"}
                           </span>
                         </div>
-
-                        {/* Multi-source Badges */}
-                        {job.sources && job.sources.length > 0 && (
-                          <div className="pt-1">
-                            <span className="text-[10px] font-semibold text-blue-300 bg-blue-500/15 border border-blue-500/25 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                              🔗 {job.sources.length === 1 ? job.sources[0].name : `${job.sources.length} Quellen: ${job.sources.map(s => s.name).join(', ')}`}
-                            </span>
+                        
+                        {/* Footer Location & Sources */}
+                        <div className="text-xs text-slate-400 flex items-center justify-between pt-2.5 border-t border-slate-800/80">
+                          <div className="flex items-center gap-1 truncate max-w-[190px]">
+                            <MapPin className="w-3.5 h-3.5 shrink-0 text-blue-400" /> 
+                            <span className="truncate font-medium text-slate-300">{job.location_name}</span>
                           </div>
-                        )}
+
+                          {job.sources && job.sources.length > 0 && (
+                            <span className="text-[10px] font-bold text-blue-300 bg-blue-500/15 border border-blue-500/30 px-2 py-0.5 rounded-full">
+                              🔗 {job.sources.length === 1 ? job.sources[0].name : `${job.sources.length} Quellen`}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
