@@ -77,24 +77,18 @@ export function JobMap({
     }
   }, [userLocation, selectedJob, routeMode]);
 
-  const [viewState, setViewState] = useState({
-    longitude: 8.6821, // Frankfurt
+  // Track current zoom for clustering purposes
+  const [currentZoom, setCurrentZoom] = useState(initialViewState?.zoom || 11);
+
+  // Default initial configuration
+  const mapInitialViewState = useMemo(() => ({
+    longitude: 8.6821,
     latitude: 50.1109,
     zoom: 10,
-    ...initialViewState,
-  });
-
-  // Sync internal viewState ONLY on mount to respect initial target
-  const isInitialMount = useRef(true);
-  useEffect(() => {
-    if (initialViewState && isInitialMount.current) {
-      isInitialMount.current = false;
-      setViewState(prev => ({
-        ...prev,
-        ...initialViewState
-      }));
-    }
-  }, [initialViewState]);
+    pitch: 0,
+    bearing: 0,
+    ...initialViewState
+  }), []);
 
   // Track the last user location we flew to, to avoid flying back on every hover/re-render
   const lastFlewToLoc = useRef<string>("");
@@ -108,14 +102,13 @@ export function JobMap({
 
       const calculatedZoom = Math.min(16, Math.max(9, 15.5 - Math.log2(radiusKm / 1.5)));
       
-      setViewState(prev => ({
-        ...prev,
-        longitude: userLocation.longitude,
-        latitude: userLocation.latitude,
+      mapRef.current?.flyTo({
+        center: [userLocation.longitude, userLocation.latitude],
         zoom: calculatedZoom,
-        pitch: 20, // Light pitch for a more "normal" top-down view
-        bearing: 0
-      }));
+        pitch: 20,
+        bearing: 0,
+        duration: 1200
+      });
     }
   }, [userLocation, radiusKm, selectedJob]);
 
@@ -223,18 +216,18 @@ export function JobMap({
     if (!mapRef.current) return [];
     try {
       const bounds = mapRef.current.getMap().getBounds().toArray().flat() as [number, number, number, number];
-      return supercluster.getClusters(bounds, Math.floor(viewState.zoom));
+      return supercluster.getClusters(bounds, Math.floor(currentZoom));
     } catch {
       return [];
     }
-  }, [supercluster, viewState.zoom, jobs]);
+  }, [supercluster, currentZoom, jobs]);
 
   return (
     <div className="w-full h-full relative overflow-hidden bg-background">
       <Map
         ref={mapRef}
-        {...viewState}
-        onMove={(evt) => setViewState(evt.viewState)}
+        initialViewState={mapInitialViewState}
+        onMove={(evt) => setCurrentZoom(evt.viewState.zoom)}
         mapStyle={MAP_STYLES[mapStyleKey]}
         mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
         style={{ width: "100%", height: "100%" }}
@@ -360,11 +353,10 @@ export function JobMap({
                     supercluster.getClusterExpansionZoom(cluster.id as number),
                     18
                   );
-                  setViewState({
-                    ...viewState,
-                    longitude,
-                    latitude,
+                  mapRef.current?.flyTo({
+                    center: [longitude, latitude],
                     zoom: expansionZoom,
+                    duration: 500
                   });
                 }}
               >
