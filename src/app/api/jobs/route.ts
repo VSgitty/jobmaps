@@ -30,6 +30,18 @@ export interface JobSource {
   isPrimary?: boolean;
 }
 
+export interface CommuteTimes {
+  driving: number;
+  transit: number;
+  cycling: number;
+  walking: number;
+}
+
+export interface CommuteCost {
+  drivingMonthly: number;
+  transitMonthly: number;
+}
+
 export interface Job {
   id: string;
   title: string;
@@ -57,7 +69,14 @@ export interface Job {
     driving?: string;
     cycling?: string;
     walking?: string;
+    transit?: string;
   };
+  commute_times?: CommuteTimes;
+  commute_cost?: CommuteCost;
+  fit_score?: number;
+  fit_reasons?: string[];
+  homeoffice_option?: 'Remote' | 'Hybrid' | 'Vor Ort';
+  employer_id?: string;
 }
 
 // Real German Major City Coordinates Cache for accurate job marker placement
@@ -383,12 +402,13 @@ export async function GET(request: Request) {
       const combinedAll = [...VERIFIED_JOBS_DATABASE, ...processedJobs];
       let mergedJobs = deduplicateAndMergeJobs(combinedAll);
 
-      // Recalculate exact distance from current search origin
+      // Recalculate exact distance & enrich with life-first metrics (commute, fit score, costs)
       for (const j of mergedJobs) {
         const exactDist = calculateDistanceKm(lat, lon, j.latitude, j.longitude);
         j.exact_distance = exactDist;
         j.distance = Math.round(exactDist * 100) / 100;
         j.distance_text = exactDist < 1 ? `${Math.max(10, Math.round(exactDist * 1000))} m` : `${(Math.round(exactDist * 10) / 10).toFixed(1)} km`;
+        enrichJobWithMetrics(j, lat, lon);
       }
 
       // Adaptive Radius Filter: If narrow radius has < 10 jobs, include nearby regional jobs
@@ -431,6 +451,89 @@ export async function GET(request: Request) {
     total: 0, 
     count: 0 
   });
+}
+
+function enrichJobWithMetrics(job: Job, originLat: number, originLon: number): Job {
+  const dist = job.exact_distance ?? calculateDistanceKm(originLat, originLon, job.latitude, job.longitude);
+  
+  // Commute times in minutes
+  const drivingMins = Math.max(1, Math.round((dist / 42) * 60 + 3));
+  const transitMins = Math.max(3, Math.round((dist / 26) * 60 + 8));
+  const cyclingMins = Math.max(2, Math.round((dist / 16) * 60));
+  const walkingMins = Math.max(2, Math.round((dist / 4.8) * 60));
+
+  job.commute_times = {
+    driving: drivingMins,
+    transit: transitMins,
+    cycling: cyclingMins,
+    walking: walkingMins
+  };
+
+  job.routes = {
+    driving: `${drivingMins} Min`,
+    transit: `${transitMins} Min`,
+    cycling: `${cyclingMins} Min`,
+    walking: `${walkingMins} Min`
+  };
+
+  // Commute costs (€ / month)
+  const drivingCost = Math.round(dist * 2 * 21 * 0.22);
+  const transitCost = dist <= 5 ? 29 : dist <= 25 ? 49 : 69;
+  
+  job.commute_cost = {
+    drivingMonthly: drivingCost,
+    transitMonthly: transitCost
+  };
+
+  // Homeoffice / Hybrid option
+  const titleAndDesc = `${job.title} ${job.description || ''} ${job.type || ''}`.toLowerCase();
+  let ho: 'Remote' | 'Hybrid' | 'Vor Ort' = 'Vor Ort';
+  if (titleAndDesc.match(/full remote|100% remote|homeoffice|remote/)) {
+    ho = 'Remote';
+  } else if (titleAndDesc.match(/hybrid|flexibel|software|developer|it|analyst|marketing|beratung|manager|cloud|data/)) {
+    ho = 'Hybrid';
+  }
+  job.homeoffice_option = ho;
+
+  // Fit score & reasons
+  let score = 98;
+  const reasons: string[] = [];
+
+  if (drivingMins <= 15) {
+    reasons.push(`✓ Nur ${drivingMins} Min. Pendelzeit mit dem Auto`);
+  } else if (drivingMins <= 30) {
+    score -= 5;
+    reasons.push(`✓ Gute Anbindung (${drivingMins} Min. Auto, ${transitMins} Min. ÖPNV)`);
+  } else {
+    score -= 15;
+    reasons.push(`⚠️ ${drivingMins} Min. Pendelzeit (${dist.toFixed(1)} km)`);
+  }
+
+  if (ho === 'Remote') {
+    score += 2;
+    reasons.push('✓ 100% Homeoffice / Ortsunabhängig');
+  } else if (ho === 'Hybrid') {
+    reasons.push('✓ Hybrid-Modell (z.B. 2-3 Tage Homeoffice / Woche)');
+  } else {
+    reasons.push('✓ Feste Präsenz vor Ort im Team');
+  }
+
+  if (job.rating && parseFloat(job.rating) >= 4.5) {
+    reasons.push(`✓ Top-Bewertung als Arbeitgeber (${job.rating}/5.0 ⭐)`);
+  }
+
+  job.fit_score = Math.min(99, Math.max(65, score));
+  job.fit_reasons = reasons;
+
+  // Employer ID for grouping
+  const cleanCompany = (job.company_name || 'Unbekannt')
+    .toLowerCase()
+    .replace(/(gmbh|ag|se|co|kg|e\.v\.|ltd|stiftung)/g, '')
+    .replace(/[^a-z0-9]/g, '')
+    .trim();
+  job.employer_id = `${cleanCompany}-${Math.round(job.latitude * 1000)}-${Math.round(job.longitude * 1000)}`;
+
+  return job;
 }
 
 function deduplicateAndMergeJobs(jobs: Job[]): Job[] {
