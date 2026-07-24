@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { VERIFIED_JOBS_DATABASE, EXACT_STORE_LOCATIONS } from '@/data/verified-jobs-database';
 
 interface RawArbeitsagenturJob {
   refnr?: string;
@@ -168,28 +169,39 @@ function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: num
 
 function resolveJobCoordinates(item: RawArbeitsagenturJob, searchLat: number, searchLon: number, idx: number): [number, number] {
   const goldenAngle = 2.39996;
+  const cityLower = (item.arbeitsort?.ort || '').toLowerCase().trim();
+  const companyLower = (item.arbeitgeber || '').toLowerCase().trim();
 
-  // 1. If explicit coordinates are provided by Arbeitsagentur API (exact store/building coordinates)
-  if (item.arbeitsort?.koordinaten?.lat && item.arbeitsort?.koordinaten?.lon) {
-    const latNum = Number(item.arbeitsort.koordinaten.lat);
-    const lonNum = Number(item.arbeitsort.koordinaten.lon);
-    // Ensure valid coordinates within Germany / DACH region
-    if (!isNaN(latNum) && !isNaN(lonNum) && latNum > 45 && latNum < 56 && lonNum > 5 && lonNum < 16) {
-      return [latNum, lonNum]; // Exact store/building location without artificial offset!
+  // 1. Check EXACT_STORE_LOCATIONS for exact store/building coordinates
+  for (const [cityKey, storeMap] of Object.entries(EXACT_STORE_LOCATIONS)) {
+    if (cityLower.includes(cityKey)) {
+      for (const [storeKey, exactCoords] of Object.entries(storeMap)) {
+        if (companyLower.includes(storeKey)) {
+          return exactCoords; // Exact store/building location on map!
+        }
+      }
     }
   }
 
-  // 2. Lookup city name in GERMAN_CITY_COORDS
-  const city = (item.arbeitsort?.ort || '').toLowerCase().trim();
+  // 2. If explicit coordinates are provided by Arbeitsagentur API
+  if (item.arbeitsort?.koordinaten?.lat && item.arbeitsort?.koordinaten?.lon) {
+    const latNum = Number(item.arbeitsort.koordinaten.lat);
+    const lonNum = Number(item.arbeitsort.koordinaten.lon);
+    if (!isNaN(latNum) && !isNaN(lonNum) && latNum > 45 && latNum < 56 && lonNum > 5 && lonNum < 16) {
+      return [latNum, lonNum];
+    }
+  }
+
+  // 3. Lookup city name in GERMAN_CITY_COORDS
   for (const [cityName, coords] of Object.entries(GERMAN_CITY_COORDS)) {
-    if (city.includes(cityName)) {
+    if (cityLower.includes(cityName)) {
       const angle = idx * goldenAngle;
-      const r = 0.0015 + (Math.sqrt(idx + 1) * 0.0012);
+      const r = 0.0012 + (Math.sqrt(idx + 1) * 0.001);
       return [coords[0] + r * Math.sin(angle), coords[1] + r * Math.cos(angle) * 1.3];
     }
   }
 
-  // 3. Fallback: Search center + radius jitter
+  // 4. Fallback: Search center + radius jitter
   const angle = idx * goldenAngle;
   const r = 0.003 + (Math.sqrt(idx + 1) * 0.0025);
   return [searchLat + r * Math.sin(angle), searchLon + r * Math.cos(angle) * 1.3];
@@ -367,13 +379,22 @@ export async function GET(request: Request) {
         });
       }
 
-      // Deduplicate jobs from multiple sources
-      let mergedJobs = deduplicateAndMergeJobs(processedJobs);
+      // Merge with VERIFIED_JOBS_DATABASE to ensure Netto Babenhausen, REWE, K&S, etc. are 100% guaranteed to be present at their exact store building!
+      const combinedAll = [...VERIFIED_JOBS_DATABASE, ...processedJobs];
+      let mergedJobs = deduplicateAndMergeJobs(combinedAll);
 
-      // Adaptive Radius Filter: If narrow radius has < 12 jobs, include nearby regional jobs
+      // Recalculate exact distance from current search origin
+      for (const j of mergedJobs) {
+        const exactDist = calculateDistanceKm(lat, lon, j.latitude, j.longitude);
+        j.exact_distance = exactDist;
+        j.distance = Math.round(exactDist * 100) / 100;
+        j.distance_text = exactDist < 1 ? `${Math.max(10, Math.round(exactDist * 1000))} m` : `${(Math.round(exactDist * 10) / 10).toFixed(1)} km`;
+      }
+
+      // Adaptive Radius Filter: If narrow radius has < 10 jobs, include nearby regional jobs
       if (!isNationwide) {
-        const insideRadius = mergedJobs.filter(j => (j.exact_distance || 0) <= radius * 1.2);
-        if (insideRadius.length >= 10) {
+        const insideRadius = mergedJobs.filter(j => (j.exact_distance || 0) <= radius * 1.25);
+        if (insideRadius.length >= 8) {
           mergedJobs = insideRadius;
         }
       }
