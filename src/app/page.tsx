@@ -96,7 +96,7 @@ export default function Home() {
             {isGoLocating ? (
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
-              <span className="bg-white text-emerald-700 rounded-full w-7 h-7 flex items-center justify-center font-black text-[10px] shadow-sm tracking-tighter">GO</span>
+              <span className="font-black text-sm tracking-tighter drop-shadow-sm">GO</span>
             )}
           </Button>
         </div>
