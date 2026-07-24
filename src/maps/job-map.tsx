@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import Map, { NavigationControl, Marker, ViewState, Source, Layer, MapRef } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { Layers, User } from "lucide-react";
+import { Layers, User, Car, Bike, Bus, Navigation } from "lucide-react";
 import { UserLocation, RouteMode, Job } from "../app/map/page";
 import { getJobCategory } from "@/lib/job-categories";
 import circle from '@turf/circle';
@@ -48,6 +48,8 @@ interface JobMapProps {
   hoveredJobId?: string | null;
   onHoverJob?: (jobId: string | null) => void;
   routeMode?: RouteMode;
+  showDemoShowcase?: boolean;
+  activeDemoMode?: RouteMode;
 }
 
 export function JobMap({ 
@@ -60,7 +62,9 @@ export function JobMap({
   onSelectJob,
   hoveredJobId,
   onHoverJob,
-  routeMode = 'driving'
+  routeMode = 'driving',
+  showDemoShowcase = false,
+  activeDemoMode
 }: JobMapProps) {
   const mapRef = useRef<MapRef | null>(null);
   const [routeData, setRouteData] = useState<GeoJSON.Geometry | null>(null);
@@ -276,6 +280,34 @@ export function JobMap({
     }
   }, [supercluster, currentZoom, bounds]);
 
+  // Animation progress for vehicle icons in showcase mode
+  const [animProgress, setAnimProgress] = useState(0);
+
+  useEffect(() => {
+    if (!showDemoShowcase) return;
+    let animFrame: number;
+    let start = performance.now();
+    const duration = 3200; // 3.2 seconds vehicle loop
+
+    const tick = (now: number) => {
+      const elapsed = now - start;
+      const progress = (elapsed % duration) / duration;
+      setAnimProgress(progress);
+      animFrame = requestAnimationFrame(tick);
+    };
+
+    animFrame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(animFrame);
+  }, [showDemoShowcase]);
+
+  const demoHomeCoord: [number, number] = useMemo(() => [8.6720, 50.1180], []);
+  const demoTargets = useMemo(() => [
+    { mode: 'driving', name: 'Tech Corp', icon: Car, color: '#3b82f6', target: [8.6530, 50.1290] as [number, number], label: '12 Min • Auto (A66)' },
+    { mode: 'transit', name: 'REWE Markt', icon: Bus, color: '#a855f7', target: [8.6940, 50.1060] as [number, number], label: '18 Min • ÖPNV (S1/S2)' },
+    { mode: 'cycling', name: 'Bosch Tech', icon: Bike, color: '#f59e0b', target: [8.6510, 50.1120] as [number, number], label: '24 Min • Fahrrad (Radweg)' },
+    { mode: 'walking', name: 'Allianz AG', icon: Navigation, color: '#10b981', target: [8.6790, 50.1130] as [number, number], label: '35 Min • Zu Fuß (1,9 km)' },
+  ], []);
+
   return (
     <div className="w-full h-full relative overflow-hidden bg-background">
       <Map
@@ -371,29 +403,97 @@ export function JobMap({
           </Source>
         )}
 
-        {/* Route Line with distinct transport mode colors & casing */}
-        {routeData && (
-          <Source id="route" type="geojson" data={{ type: 'Feature', properties: {}, geometry: routeData }}>
-            <Layer
-              id="route-line-casing"
-              type="line"
-              paint={{
-                'line-color': '#000000',
-                'line-width': 8,
-                'line-opacity': 0.25
-              }}
-            />
-            <Layer
-              id="route-line"
-              type="line"
-              paint={{
-                'line-color': routeMode === 'driving' ? '#10b981' : routeMode === 'cycling' ? '#f59e0b' : '#8b5cf6',
-                'line-width': 5,
-                'line-opacity': 0.9,
-                'line-dasharray': routeMode === 'walking' ? [2, 1] : [1, 0]
-              }}
-            />
-          </Source>
+        {/* Showcase Demo Routes & Animated Vehicles */}
+        {showDemoShowcase && (
+          <>
+            {/* Origin Home Marker */}
+            <Marker longitude={demoHomeCoord[0]} latitude={demoHomeCoord[1]}>
+              <div className="relative flex items-center justify-center group pointer-events-none z-30">
+                <div className="absolute w-12 h-12 bg-blue-500/30 rounded-full animate-ping" />
+                <div className="px-3.5 py-1.5 rounded-full bg-blue-600 border-2 border-white text-white font-black text-xs shadow-2xl flex items-center gap-1.5">
+                  <span>🏠 Mein Zuhause</span>
+                </div>
+              </div>
+            </Marker>
+
+            {/* Glowing Demo Route Lines */}
+            {demoTargets.map((t, idx) => {
+              const isSelectedMode = !activeDemoMode || activeDemoMode === t.mode;
+              return (
+                <Source key={`demo-src-${idx}`} type="geojson" data={{
+                  type: 'Feature',
+                  properties: {},
+                  geometry: {
+                    type: 'LineString',
+                    coordinates: [demoHomeCoord, t.target]
+                  }
+                }}>
+                  <Layer
+                    id={`demo-line-casing-${idx}`}
+                    type="line"
+                    paint={{
+                      'line-color': '#000000',
+                      'line-width': isSelectedMode ? 8 : 3,
+                      'line-opacity': isSelectedMode ? 0.4 : 0.1
+                    }}
+                  />
+                  <Layer
+                    id={`demo-line-${idx}`}
+                    type="line"
+                    paint={{
+                      'line-color': t.color,
+                      'line-width': isSelectedMode ? 5 : 2,
+                      'line-opacity': isSelectedMode ? 0.95 : 0.25,
+                      'line-dasharray': t.mode === 'walking' ? [2, 1] : [1, 0]
+                    }}
+                  />
+                </Source>
+              );
+            })}
+
+            {/* Target Destination Badges */}
+            {demoTargets.map((t, idx) => {
+              const isSelectedMode = !activeDemoMode || activeDemoMode === t.mode;
+              return (
+                <Marker key={`target-badge-${idx}`} longitude={t.target[0]} latitude={t.target[1]}>
+                  <div className={`flex flex-col items-center pointer-events-none transition-all duration-300 ${isSelectedMode ? 'scale-110 opacity-100 z-30' : 'scale-90 opacity-40 z-10'}`}>
+                    <div 
+                      className="px-3 py-1.5 rounded-2xl border-2 border-white text-white shadow-2xl text-xs font-extrabold flex flex-col items-center text-center"
+                      style={{ backgroundColor: t.color }}
+                    >
+                      <span className="font-black text-white">{t.name}</span>
+                      <span className="text-[10px] text-white/90 font-semibold">{t.label}</span>
+                    </div>
+                  </div>
+                </Marker>
+              );
+            })}
+
+            {/* Moving Animated Vehicle / Traveler Markers */}
+            {demoTargets.map((t, idx) => {
+              const isSelectedMode = !activeDemoMode || activeDemoMode === t.mode;
+              if (!isSelectedMode) return null;
+
+              const curLng = demoHomeCoord[0] + (t.target[0] - demoHomeCoord[0]) * animProgress;
+              const curLat = demoHomeCoord[1] + (t.target[1] - demoHomeCoord[1]) * animProgress;
+              const IconComp = t.icon;
+
+              return (
+                <Marker key={`vehicle-${idx}`} longitude={curLng} latitude={curLat}>
+                  <div className="relative flex items-center justify-center -translate-x-1/2 -translate-y-1/2 pointer-events-none z-40">
+                    <div className="absolute w-10 h-10 rounded-full animate-ping opacity-75" style={{ backgroundColor: `${t.color}60` }} />
+                    <div 
+                      className="px-2.5 py-1.5 rounded-full border-2 border-white text-white font-black text-xs shadow-2xl flex items-center gap-1.5 animate-bounce backdrop-blur-md"
+                      style={{ backgroundColor: t.color }}
+                    >
+                      <IconComp className="w-4 h-4 text-white" />
+                      <span className="text-[11px] font-extrabold">{t.label.split('•')[0].trim()}</span>
+                    </div>
+                  </div>
+                </Marker>
+              );
+            })}
+          </>
         )}
 
         {/* User Location Pin */}
