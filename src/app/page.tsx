@@ -2,7 +2,7 @@
 
 import { Header } from '@/components/layout/header';
 import { JobMap } from '@/maps/job-map';
-import { MapPin, Navigation, Clock, Target, TrendingUp, Building2, Users, Search } from 'lucide-react';
+import { MapPin, Navigation, Clock, Target, TrendingUp, Building2, Users, Search, Car, Bike, Bus, Sparkles, ArrowRight, ShieldCheck, Compass } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -19,7 +19,7 @@ export default function Home() {
   const [counts, setCounts] = useState({ jobs: 0, companies: 0, applicants: 0 });
 
   useEffect(() => {
-    // Simple counter animation on mount
+    // Counter animation on mount
     const interval = setInterval(() => {
       setCounts(prev => ({
         jobs: prev.jobs < 124500 ? prev.jobs + 2500 : 124500,
@@ -64,6 +64,10 @@ export default function Home() {
     }
   };
 
+  const handleQuickSearch = (term: string) => {
+    router.push(`/map?q=${encodeURIComponent(term)}`);
+  };
+
   const handleGoLocate = () => {
     setIsGoLocating(true);
     if ('geolocation' in navigator) {
@@ -86,14 +90,14 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-background font-sans selection:bg-primary/30 text-text overflow-x-hidden">
+    <main className="min-h-screen bg-slate-950 font-sans selection:bg-blue-500/30 text-slate-100 overflow-x-hidden">
       <Header />
       
-      {/* 1. HERO SECTION */}
-      <section className="relative h-[90vh] min-h-[700px] flex items-center pt-16">
-        {/* Background Map & Gradient Overlay */}
-        <div className="absolute inset-0 z-0 overflow-hidden">
-          <div className="absolute inset-0 scale-105 pointer-events-none opacity-50 mix-blend-luminosity">
+      {/* 1. HERO SECTION WITH VISIBLE LIVE MAP & FLOW OVERLAY */}
+      <section className="relative min-h-[92vh] flex items-center pt-24 pb-16 overflow-hidden">
+        {/* Live Interactive Background Map */}
+        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+          <div className="absolute inset-0 scale-105 opacity-80 sm:opacity-85 brightness-[0.92] contrast-[1.08] saturate-[1.15]">
             <JobMap 
               interactive={false} 
               userLocation={{ latitude: 50.1109, longitude: 8.6821, address: 'Frankfurt am Main' }}
@@ -101,70 +105,72 @@ export default function Home() {
                 id: 'demo-1',
                 latitude: 50.12,
                 longitude: 8.67,
-                title: 'Software Engineer',
-                company_name: 'Tech Corp',
-                location_name: 'Frankfurt'
+                title: 'Senior Software Engineer',
+                company_name: 'Tech Corp Deutschland',
+                location_name: 'Frankfurt am Main'
               }}
               routeMode="driving"
               radiusKm={15}
             />
           </div>
-          <div className="absolute inset-0 bg-gradient-to-b from-background via-background/80 to-background" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-transparent to-transparent" />
+          {/* Flow transition overlay (Radial Vignette + Smooth Bottom Fade) */}
+          <div className="absolute inset-0 map-flow-overlay pointer-events-none" />
+          <div className="absolute bottom-0 left-0 right-0 h-48 map-bottom-fade pointer-events-none" />
         </div>
 
-        <div className="relative z-10 w-full max-w-[1400px] mx-auto px-6 sm:px-12 flex flex-col lg:flex-row items-center gap-16">
-          {/* Left: Text & CTA */}
-          <div className="flex-1 flex flex-col items-start text-left">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-white/80 mb-6 backdrop-blur-md">
-              <CustomSparkles className="w-4 h-4 text-emerald-400" />
-              <span>Die Recruiting-Plattform der nächsten Generation</span>
+        <div className="relative z-10 w-full max-w-[1400px] mx-auto px-6 sm:px-10 flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-16">
+          {/* Left Hero Content */}
+          <div className="flex-1 flex flex-col items-start text-left max-w-2xl">
+            {/* Pill Badge */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-950/70 border border-blue-500/30 text-xs font-semibold text-blue-300 mb-6 backdrop-blur-xl shadow-lg shadow-blue-950/50">
+              <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
+              <span>• Deutschlands 1. interaktive Job-Karte</span>
             </div>
             
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.1] mb-6">
+            <h1 className="text-4xl sm:text-6xl lg:text-6xl font-extrabold tracking-tight text-white leading-[1.12] mb-6">
               Finde Arbeit, die <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-emerald-400">
-                zu deinem Leben passt.
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-sky-300 to-indigo-300">
+                exakt in dein Leben passt.
               </span>
             </h1>
             
-            <p className="text-lg sm:text-xl text-white/70 mb-10 max-w-2xl leading-relaxed font-light">
-              Kein langes Suchen mehr. Entdecke Top-Arbeitgeber direkt in deiner Nähe, vergleiche echte Pendelzeiten und finde deinen Traumjob auf der Karte.
+            <p className="text-base sm:text-lg text-slate-300 mb-8 leading-relaxed font-normal backdrop-blur-md bg-slate-950/40 p-4 rounded-2xl border border-white/5">
+              Entdecke Top-Arbeitgeber direkt in deiner Umgebung, vergleiche echte Pendelzeiten mit Auto, Fahrrad oder ÖPNV und starte mit nur einem Klick.
             </p>
 
-            {/* Smart Search Bar */}
-            <div className="w-full max-w-2xl mb-8 relative">
-              <form onSubmit={handleSearch} className="w-full bg-surface/50 backdrop-blur-xl border border-white/10 rounded-2xl p-2.5 flex flex-col sm:flex-row items-center gap-3 shadow-2xl transition-all hover:bg-surface/80 hover:border-white/20 focus-within:bg-surface focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10">
-                <div className="flex-1 flex items-center px-4 w-full relative">
-                  <Search className="w-5 h-5 text-white/40 mr-3 shrink-0" />
+            {/* Glass Search Bar */}
+            <div className="w-full mb-6 relative">
+              <form onSubmit={handleSearch} className="w-full bg-slate-900/80 backdrop-blur-2xl border border-slate-700/60 rounded-2xl p-2 flex flex-col sm:flex-row items-center gap-2 shadow-2xl shadow-black/60 focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/15 transition-all">
+                <div className="flex-1 flex items-center px-3.5 w-full relative">
+                  <Search className="w-5 h-5 text-blue-400 mr-3 shrink-0" />
                   <input 
                     type="text" 
-                    placeholder="Job, Stadt, Firma oder Branche eingeben..." 
-                    className="w-full bg-transparent border-none outline-none text-white placeholder:text-white/40 font-medium text-base"
+                    placeholder="Job, Stadt, Firma oder Branche..." 
+                    className="w-full bg-transparent border-none outline-none text-white placeholder:text-slate-400 font-medium text-sm sm:text-base py-2"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onFocus={() => setShowDropdown(true)}
                     onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
                   />
                 </div>
-                <Button type="submit" className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-white rounded-xl px-8 py-6 text-base font-bold shadow-lg transition-transform active:scale-95">
+                <Button type="submit" className="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white rounded-xl px-7 py-5 text-sm font-bold shadow-lg shadow-blue-600/30 transition-transform active:scale-95 shrink-0">
                   Jobs finden
                 </Button>
               </form>
 
               {/* Autocomplete Dropdown */}
               {showDropdown && suggestions.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
                   <div className="p-2 space-y-1">
-                    <div className="text-[10px] font-bold text-white/40 uppercase px-2 py-1">Vorschläge</div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase px-2 py-1">Vorschläge</div>
                     {suggestions.map((feat: any) => (
                       <button
                         key={feat.id}
                         type="button"
-                        className="w-full text-left px-3 py-3 text-sm text-white/90 hover:bg-white/5 rounded-lg transition-colors flex items-center gap-3 group"
+                        className="w-full text-left px-3 py-2.5 text-xs sm:text-sm text-slate-200 hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-3 group"
                         onClick={() => handleSelectSuggestion(feat)}
                       >
-                        <MapPin className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <MapPin className="w-4 h-4 text-blue-400 shrink-0" />
                         <span className="truncate">{feat.place_name as string}</span>
                       </button>
                     ))}
@@ -173,36 +179,103 @@ export default function Home() {
               )}
             </div>
 
-            <div className="flex items-center gap-4 text-sm text-white/50 font-medium">
-              <span>Oder direkt loslegen:</span>
+            {/* Quick Filter Chips & GPS Button */}
+            <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-400">
               <Button 
                 onClick={handleGoLocate}
                 disabled={isGoLocating}
-                className="bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-full px-5 py-2 h-auto text-xs font-bold flex items-center gap-2 transition-all active:scale-95 group"
+                className="bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-blue-200 rounded-full px-4 py-1.5 h-auto text-xs font-semibold flex items-center gap-2 transition-all active:scale-95 mr-1"
               >
                 {isGoLocating ? (
-                  <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  <div className="w-3.5 h-3.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <>
-                    <Navigation className="w-3.5 h-3.5 text-emerald-400 group-hover:animate-pulse" />
-                    Jobs vor meiner Haustür
+                    <Navigation className="w-3.5 h-3.5 text-blue-400" />
+                    Jobs in meiner Nähe
                   </>
                 )}
               </Button>
+
+              <span className="text-slate-500 hidden sm:inline">| Beliebt:</span>
+              {['Frankfurt', 'München', 'Software', 'Pflege', 'Remote'].map((term) => (
+                <button
+                  key={term}
+                  onClick={() => handleQuickSearch(term)}
+                  className="px-3 py-1 rounded-full bg-slate-900/60 border border-slate-800 text-slate-300 hover:text-white hover:border-blue-500/40 hover:bg-blue-950/40 transition-all text-xs"
+                >
+                  {term}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Right: Live Counters / Abstract Preview */}
-          <div className="flex-1 w-full relative hidden lg:block">
-            <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 to-emerald-500/20 blur-3xl rounded-full" />
-            <div className="relative grid grid-cols-2 gap-4">
-              <CounterCard icon={<CustomBriefcase />} value={counts.jobs.toLocaleString('de-DE')} label="Offene Stellen" delay={0} />
-              <CounterCard icon={<Building2 />} value={counts.companies.toLocaleString('de-DE')} label="Top Unternehmen" delay={100} />
-              <CounterCard icon={<Users />} value={counts.applicants.toLocaleString('de-DE')} label="Aktive Bewerber" delay={200} />
-              <div className="bg-gradient-to-br from-primary to-emerald-500 rounded-3xl p-6 flex flex-col justify-center text-white shadow-2xl transform translate-y-4 hover:-translate-y-1 transition-transform">
-                <TrendingUp className="w-8 h-8 mb-4 opacity-80" />
-                <div className="text-3xl font-black mb-1">+4.200</div>
-                <div className="text-sm font-medium opacity-90">Neue Jobs heute</div>
+          {/* Right: Live Interactive Card Preview */}
+          <div className="flex-1 w-full max-w-lg relative hidden lg:block">
+            <div className="glass-card rounded-3xl p-6 shadow-2xl border border-slate-800/80 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 rounded-full blur-2xl pointer-events-none" />
+              
+              <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold">
+                    <Compass className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white leading-snug">Live Routing & Pendelzeiten</h3>
+                    <p className="text-xs text-slate-400">Exakte Wege ab deiner Haustür</p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-full">
+                  Echtzeit
+                </span>
+              </div>
+
+              {/* Sample Job Card */}
+              <div className="bg-slate-900/90 rounded-2xl p-4 border border-slate-800 mb-4 hover:border-blue-500/40 transition-all">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <div className="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-0.5">Software & IT</div>
+                    <div className="text-base font-extrabold text-white">Senior Fullstack Developer</div>
+                    <div className="text-xs text-slate-400">Tech Corp Deutschland • Frankfurt am Main</div>
+                  </div>
+                  <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md">
+                    Vollzeit
+                  </span>
+                </div>
+
+                {/* Pendelzeiten Grid */}
+                <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-800/80 text-center">
+                  <div className="bg-slate-950/60 p-2 rounded-xl border border-slate-800">
+                    <Car className="w-3.5 h-3.5 text-blue-400 mx-auto mb-1" />
+                    <div className="text-xs font-bold text-white">12 Min</div>
+                    <div className="text-[10px] text-slate-400">Auto</div>
+                  </div>
+                  <div className="bg-slate-950/60 p-2 rounded-xl border border-slate-800">
+                    <Bus className="w-3.5 h-3.5 text-sky-400 mx-auto mb-1" />
+                    <div className="text-xs font-bold text-white">18 Min</div>
+                    <div className="text-[10px] text-slate-400">ÖPNV</div>
+                  </div>
+                  <div className="bg-slate-950/60 p-2 rounded-xl border border-slate-800">
+                    <Bike className="w-3.5 h-3.5 text-indigo-400 mx-auto mb-1" />
+                    <div className="text-xs font-bold text-white">24 Min</div>
+                    <div className="text-[10px] text-slate-400">Fahrrad</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Metrics */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-slate-900/60 p-3 rounded-2xl border border-slate-800/80 text-center">
+                  <div className="text-lg font-black text-white">{counts.jobs.toLocaleString('de-DE')}</div>
+                  <div className="text-[10px] text-slate-400 font-medium">Offene Jobs</div>
+                </div>
+                <div className="bg-slate-900/60 p-3 rounded-2xl border border-slate-800/80 text-center">
+                  <div className="text-lg font-black text-white">{counts.companies.toLocaleString('de-DE')}</div>
+                  <div className="text-[10px] text-slate-400 font-medium">Unternehmen</div>
+                </div>
+                <div className="bg-slate-900/60 p-3 rounded-2xl border border-slate-800/80 text-center">
+                  <div className="text-lg font-black text-blue-400">+4.200</div>
+                  <div className="text-[10px] text-slate-400 font-medium">Neu heute</div>
+                </div>
               </div>
             </div>
           </div>
@@ -210,97 +283,98 @@ export default function Home() {
       </section>
 
       {/* 2. LOGO CLOUD (Top Arbeitgeber) */}
-      <section className="py-12 border-y border-white/5 bg-white/[0.02]">
-        <div className="max-w-[1400px] mx-auto px-6 sm:px-12 flex flex-col md:flex-row items-center justify-between gap-8">
-          <p className="text-sm text-white/50 uppercase tracking-widest font-bold whitespace-nowrap">
-            Vertraut von Branchenführern
+      <section className="py-10 border-y border-slate-800/80 bg-slate-900/40 backdrop-blur-xl">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-10 flex flex-col md:flex-row items-center justify-between gap-6">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">
+            Top-Arbeitgeber auf der Karte
           </p>
-          <div className="flex flex-wrap justify-center md:justify-end items-center gap-x-12 gap-y-8 opacity-40 grayscale contrast-200 hover:grayscale-0 transition-all duration-500">
-            {/* Replace with real SVGs in production */}
-            <span className="text-2xl font-black font-sans tracking-tight">SIEMENS</span>
-            <span className="text-2xl font-black font-serif italic">BOSCH</span>
-            <span className="text-2xl font-black tracking-widest">Allianz</span>
-            <span className="text-2xl font-bold bg-white text-black px-2 rounded-sm">Lidl</span>
-            <span className="text-2xl font-black tracking-tighter text-red-500">REWE</span>
+          <div className="flex flex-wrap justify-center md:justify-end items-center gap-x-10 gap-y-6 text-slate-400 font-bold text-lg">
+            <span className="hover:text-white transition-colors tracking-tight">SIEMENS</span>
+            <span className="hover:text-white transition-colors italic font-serif">BOSCH</span>
+            <span className="hover:text-white transition-colors tracking-widest">Allianz</span>
+            <span className="bg-slate-800 text-white px-2.5 py-0.5 rounded text-base font-extrabold">Lidl</span>
+            <span className="hover:text-white transition-colors tracking-tighter text-red-400">REWE</span>
+            <span className="hover:text-white transition-colors tracking-tight">Deutsche Bahn</span>
           </div>
         </div>
       </section>
 
       {/* 3. WHY JOBMAPS (Features) */}
-      <section className="py-32 relative">
-        <div className="max-w-[1400px] mx-auto px-6 sm:px-12">
-          <div className="text-center mb-20">
-            <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">Die Jobsuche, <span className="text-primary">neu gedacht.</span></h2>
-            <p className="text-lg text-white/60 max-w-2xl mx-auto">Vergiss unübersichtliche Listen. Wir bringen Jobs dorthin, wo sie hingehören: auf die Karte.</p>
+      <section className="py-24 relative">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-10">
+          <div className="text-center mb-16 max-w-2xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-4">
+              Die Jobsuche, <span className="text-blue-400">neu gedacht.</span>
+            </h2>
+            <p className="text-base text-slate-400 leading-relaxed">
+              Schluss mit unübersichtlichen Listen und falschen Entfernungen. Wir zeigen dir Stellenangebote exakt dort, wo sie wirklich sind.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <FeatureBox 
-              icon={<MapPin />}
-              title="Kartenbasierte Suche"
-              description="Sieh sofort, wo sich der Arbeitsplatz befindet. Kein Copy-Paste mehr in Google Maps nötig."
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <FeatureCard 
+              icon={<MapPin className="w-6 h-6 text-blue-400" />}
+              title="Kartenbasierte Übersicht"
+              description="Sieh sofort auf der Karte, welche Unternehmen in deiner Nähe stellen besetzen. Keine ungenauen Entfernungsangaben mehr."
             />
-            <FeatureBox 
-              icon={<Clock />}
-              title="Reale Pendelzeiten"
-              description="Wir berechnen deinen täglichen Arbeitsweg mit Auto, Fahrrad oder ÖPNV exakt ab deiner Haustür."
+            <FeatureCard 
+              icon={<Clock className="w-6 h-6 text-sky-400" />}
+              title="Exakte Pendelzeiten"
+              description="Egal ob Auto, Fahrrad oder Bus & Bahn: Wir berechnen die echte Fahrtzeit ab deiner Adresse für ein entspanntes Pendeln."
             />
-            <FeatureBox 
-              icon={<Target />}
-              title="One-Click Bewerbung"
-              description="Lebenslauf hochladen und mit nur einem Klick bei hunderten von verifizierten Top-Arbeitgebern bewerben."
+            <FeatureCard 
+              icon={<ShieldCheck className="w-6 h-6 text-indigo-400" />}
+              title="Verifizierte Stellen"
+              description="Direkte Verknüpfung mit der Bundesagentur für Arbeit und geprüften Arbeitgebern für echte, aktuelle Jobs."
             />
           </div>
         </div>
       </section>
 
-      {/* 4. FOOTER PREVIEW */}
-      <footer className="border-t border-white/10 bg-card/50 pt-20 pb-10">
-        <div className="max-w-[1400px] mx-auto px-6 sm:px-12">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-16">
+      {/* 4. FOOTER */}
+      <footer className="border-t border-slate-800 bg-slate-900/80 pt-16 pb-10">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-10">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
             <div>
-              <div className="flex items-center gap-2 mb-6">
-                <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                  <MapPin className="w-5 h-5 text-white" />
+              <div className="flex items-center gap-2.5 mb-4">
+                <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center text-white">
+                  <MapPin className="w-4 h-4" />
                 </div>
-                <span className="text-white font-bold text-xl tracking-tight">Job Maps</span>
+                <span className="text-white font-extrabold text-lg tracking-tight">JobMaps</span>
               </div>
-              <p className="text-sm text-white/50 leading-relaxed">
-                Die moderne Recruiting-Plattform für Talente und Unternehmen, die zusammenpassen.
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Die moderne Recruiting-Plattform für transparente Jobsuche und echte Nähe.
               </p>
             </div>
             <div>
-              <h4 className="text-white font-bold mb-6">Für Bewerber</h4>
-              <ul className="space-y-4 text-sm text-white/50">
-                <li><Link href="#" className="hover:text-primary transition-colors">Jobsuche</Link></li>
-                <li><Link href="#" className="hover:text-primary transition-colors">Gehaltsrechner</Link></li>
-                <li><Link href="#" className="hover:text-primary transition-colors">Lebenslauf KI</Link></li>
-                <li><Link href="#" className="hover:text-primary transition-colors">Karriere Blog</Link></li>
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-4">Für Jobsuchende</h4>
+              <ul className="space-y-2.5 text-xs text-slate-400 font-medium">
+                <li><Link href="/map" className="hover:text-blue-400 transition-colors">Interaktive Karte</Link></li>
+                <li><Link href="/map?type=Vollzeit" className="hover:text-blue-400 transition-colors">Vollzeit Jobs</Link></li>
+                <li><Link href="/map?type=Teilzeit" className="hover:text-blue-400 transition-colors">Teilzeit & Minijobs</Link></li>
+                <li><Link href="/map?type=Homeoffice" className="hover:text-blue-400 transition-colors">Remote & Homeoffice</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="text-white font-bold mb-6">Für Arbeitgeber</h4>
-              <ul className="space-y-4 text-sm text-white/50">
-                <li><Link href="#" className="hover:text-primary transition-colors">Stellen schalten</Link></li>
-                <li><Link href="#" className="hover:text-primary transition-colors">Preise & Pakete</Link></li>
-                <li><Link href="#" className="hover:text-primary transition-colors">Talent Pool</Link></li>
-                <li><Link href="#" className="hover:text-primary transition-colors">API Integration</Link></li>
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-4">Für Arbeitgeber</h4>
+              <ul className="space-y-2.5 text-xs text-slate-400 font-medium">
+                <li><Link href="/arbeitgeber" className="hover:text-blue-400 transition-colors">Stellen schalten</Link></li>
+                <li><Link href="/preise" className="hover:text-blue-400 transition-colors">Preise & Pakete</Link></li>
+                <li><Link href="/dashboard" className="hover:text-blue-400 transition-colors">Arbeitgeber Dashboard</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="text-white font-bold mb-6">Rechtliches</h4>
-              <ul className="space-y-4 text-sm text-white/50">
-                <li><Link href="#" className="hover:text-primary transition-colors">Impressum</Link></li>
-                <li><Link href="#" className="hover:text-primary transition-colors">Datenschutz</Link></li>
-                <li><Link href="#" className="hover:text-primary transition-colors">AGB</Link></li>
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-4">Rechtliches</h4>
+              <ul className="space-y-2.5 text-xs text-slate-400 font-medium">
+                <li><Link href="#" className="hover:text-blue-400 transition-colors">Impressum</Link></li>
+                <li><Link href="#" className="hover:text-blue-400 transition-colors">Datenschutz</Link></li>
+                <li><Link href="#" className="hover:text-blue-400 transition-colors">AGB</Link></li>
               </ul>
             </div>
           </div>
-          <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-white/40">
-            <p>© 2026 JobMaps Inc. Alle Rechte vorbehalten.</p>
-            <div className="flex gap-4">
-              <span>Made with ❤️ in Germany</span>
-            </div>
+          <div className="border-t border-slate-800/80 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 font-medium">
+            <p>© 2026 JobMaps Deutschland. Alle Rechte vorbehalten.</p>
+            <p>Made with ❤️ for Jobsuchende in Deutschland</p>
           </div>
         </div>
       </footer>
@@ -309,51 +383,16 @@ export default function Home() {
 }
 
 // Subcomponents
-function CounterCard({ icon, value, label, delay }: { icon: React.ReactNode, value: string, label: string, delay: number }) {
+function FeatureCard({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) {
   return (
-    <div 
-      className="bg-surface/60 backdrop-blur-xl border border-white/10 p-6 rounded-3xl flex flex-col justify-center shadow-xl hover:-translate-y-1 transition-transform"
-      style={{ animationDelay: `${delay}ms` }}
-    >
-      <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-primary mb-4">
+    <div className="glass-card glass-card-hover p-8 rounded-3xl cursor-default flex flex-col items-start text-left">
+      <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mb-6 shadow-inner">
         {icon}
       </div>
-      <div className="text-3xl font-black text-white mb-1">{value}</div>
-      <div className="text-sm font-medium text-white/50">{label}</div>
+      <h3 className="text-lg font-extrabold text-white mb-3">{title}</h3>
+      <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">{description}</p>
     </div>
   );
 }
 
-function FeatureBox({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) {
-  return (
-    <div className="bg-surface/30 border border-white/5 hover:border-primary/30 hover:bg-surface/50 p-10 rounded-[2rem] transition-all duration-300 group cursor-default">
-      <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-8 group-hover:scale-110 group-hover:bg-primary group-hover:text-white transition-all duration-300">
-        {icon}
-      </div>
-      <h3 className="text-xl font-bold text-white mb-4">{title}</h3>
-      <p className="text-base text-white/60 leading-relaxed">{description}</p>
-    </div>
-  );
-}
-
-function CustomSparkles(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
-      <path d="M5 3v4" />
-      <path d="M19 17v4" />
-      <path d="M3 5h4" />
-      <path d="M17 19h4" />
-    </svg>
-  );
-}
-
-function CustomBriefcase(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-      <rect width="20" height="14" x="2" y="6" rx="2" />
-    </svg>
-  );
-}
 

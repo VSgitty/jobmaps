@@ -11,16 +11,17 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: '#05070A',
-        card: '#0D1117',
-        surface: '#111827',
-        primary: '#3B82F6',
-        accent: '#8B5CF6',
-        success: '#22C55E',
-        warning: '#F59E0B',
-        danger: '#EF4444',
-        text: '#FFFFFF',
-        secondary: '#A1A1AA',
+        background: '#090d16',
+        card: '#111827',
+        surface: 'rgba(17, 24, 39, 0.75)',
+        primary: '#2563eb',
+        accent: '#38bdf8',
+        indigo: '#6366f1',
+        success: '#10b981',
+        warning: '#f59e0b',
+        danger: '#ef4444',
+        text: '#f8fafc',
+        secondary: '#94a3b8',
         border: 'rgba(255,255,255,0.08)',
       },
       boxShadow: {
