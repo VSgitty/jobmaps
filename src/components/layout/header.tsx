@@ -13,10 +13,10 @@ export function Header() {
           <span className="text-white font-bold text-xl tracking-tight">Job Maps</span>
         </Link>
         <nav className="hidden lg:flex items-center gap-8">
-          <Link href="#" className="text-sm font-medium text-white/90 hover:text-white transition-colors">Für Jobsuchende</Link>
-          <Link href="#" className="text-sm font-medium text-white/70 hover:text-white transition-colors">Für Arbeitgeber</Link>
-          <Link href="#" className="text-sm font-medium text-white/70 hover:text-white transition-colors">Preise</Link>
-          <Link href="#" className="text-sm font-medium text-white/70 hover:text-white transition-colors flex items-center gap-1">
+          <Link href="/map" className="text-sm font-medium text-white/90 hover:text-white transition-colors">Für Jobsuchende</Link>
+          <Link href="/arbeitgeber" className="text-sm font-medium text-white/70 hover:text-white transition-colors">Für Arbeitgeber</Link>
+          <Link href="/preise" className="text-sm font-medium text-white/70 hover:text-white transition-colors">Preise</Link>
+          <Link href="/ressourcen" className="text-sm font-medium text-white/70 hover:text-white transition-colors flex items-center gap-1">
             Ressourcen
             <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg" className="opacity-70">
               <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -25,10 +25,12 @@ export function Header() {
         </nav>
       </div>
       <div className="flex items-center gap-4">
-        <Link href="#" className="text-sm font-medium text-white hover:text-white/80 transition-colors">Login</Link>
-        <Button className="bg-primary hover:bg-primary/90 text-white rounded-full px-6">
-          Kostenlos starten
-        </Button>
+        <Link href="/login" className="text-sm font-medium text-white hover:text-white/80 transition-colors">Login</Link>
+        <Link href="/register">
+          <Button className="bg-primary hover:bg-primary/90 text-white rounded-full px-6">
+            Kostenlos starten
+          </Button>
+        </Link>
       </div>
     </header>
   );
