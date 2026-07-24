@@ -117,7 +117,7 @@ export default function Home() {
           {/* Left: Text & CTA */}
           <div className="flex-1 flex flex-col items-start text-left">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-white/80 mb-6 backdrop-blur-md">
-              <Sparkles className="w-4 h-4 text-emerald-400" />
+              <CustomSparkles className="w-4 h-4 text-emerald-400" />
               <span>Die Recruiting-Plattform der nächsten Generation</span>
             </div>
             
@@ -196,7 +196,7 @@ export default function Home() {
           <div className="flex-1 w-full relative hidden lg:block">
             <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 to-emerald-500/20 blur-3xl rounded-full" />
             <div className="relative grid grid-cols-2 gap-4">
-              <CounterCard icon={<Briefcase />} value={counts.jobs.toLocaleString('de-DE')} label="Offene Stellen" delay={0} />
+              <CounterCard icon={<CustomBriefcase />} value={counts.jobs.toLocaleString('de-DE')} label="Offene Stellen" delay={0} />
               <CounterCard icon={<Building2 />} value={counts.companies.toLocaleString('de-DE')} label="Top Unternehmen" delay={100} />
               <CounterCard icon={<Users />} value={counts.applicants.toLocaleString('de-DE')} label="Aktive Bewerber" delay={200} />
               <div className="bg-gradient-to-br from-primary to-emerald-500 rounded-3xl p-6 flex flex-col justify-center text-white shadow-2xl transform translate-y-4 hover:-translate-y-1 transition-transform">
@@ -336,7 +336,7 @@ function FeatureBox({ icon, title, description }: { icon: React.ReactNode, title
   );
 }
 
-function Sparkles(props: React.SVGProps<SVGSVGElement>) {
+function CustomSparkles(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
@@ -348,7 +348,7 @@ function Sparkles(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-function Briefcase(props: React.SVGProps<SVGSVGElement>) {
+function CustomBriefcase(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
