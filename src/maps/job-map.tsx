@@ -306,6 +306,21 @@ export function JobMap({
     { mode: 'walking', name: 'Allianz AG', icon: Navigation, color: '#10b981', target: [8.6920, 50.1150] as [number, number], label: '35 Min • Zu Fuß (1,9 km)' },
   ], []);
 
+  const [isLoupeActive, setIsLoupeActive] = useState(false);
+  const [loupePoint, setLoupePoint] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Generate Lupe Detector Circle
+  const loupeCircle = useMemo(() => {
+    if (!loupePoint) return null;
+    try {
+      const center = [loupePoint.lng, loupePoint.lat];
+      const options = { steps: 64, units: 'kilometers' as const };
+      return circle(center, Math.min(radiusKm, 15), options);
+    } catch {
+      return null;
+    }
+  }, [loupePoint, radiusKm]);
+
   // Debounced auto-fetch on map drag / pan / zoom
   const mapMoveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -344,7 +359,16 @@ export function JobMap({
       <Map
         ref={mapRef}
         initialViewState={mapInitialViewState}
-        onClick={() => {
+        onClick={(evt) => {
+          if (isLoupeActive) {
+            const lng = evt.lngLat.lng;
+            const lat = evt.lngLat.lat;
+            setLoupePoint({ lat, lng });
+            if (onSearchThisArea) {
+              onSearchThisArea(lat, lng);
+            }
+            return;
+          }
           if (onSelectJob) {
             onSelectJob(null);
           }
@@ -352,7 +376,7 @@ export function JobMap({
         onMove={handleMapMove}
         mapStyle={MAP_STYLES[mapStyleKey]}
         mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
-        style={{ width: "100%", height: "100%" }}
+        style={{ width: "100%", height: "100%", cursor: isLoupeActive ? 'crosshair' : 'default' }}
         minZoom={4}
         maxZoom={18}
         interactive={interactive}
@@ -360,21 +384,23 @@ export function JobMap({
       >
         {interactive && <NavigationControl position="bottom-right" />}
 
-        {/* Floating Area Live-Search Button (Punkt 3) */}
+        {/* Floating Lupe / Detector Tool Toggle Button */}
         {interactive && onSearchThisArea && (
-          <div className="absolute top-4 left-4 z-20">
+          <div className="absolute top-4 left-4 z-20 flex flex-col gap-2 items-start">
             <button
-              onClick={() => {
-                if (mapRef.current) {
-                  const center = mapRef.current.getCenter();
-                  onSearchThisArea(center.lat, center.lng);
-                }
-              }}
-              className="bg-slate-900/90 backdrop-blur-md text-white px-4 py-2 rounded-xl shadow-2xl text-xs font-black flex items-center gap-2 transition-all hover:scale-105 border border-blue-500/40 hover:border-blue-400 active:scale-95 cursor-pointer group"
+              onClick={() => setIsLoupeActive(!isLoupeActive)}
+              className={`px-4 py-2 rounded-xl shadow-2xl text-xs font-black flex items-center gap-2 transition-all border active:scale-95 cursor-pointer backdrop-blur-md ${isLoupeActive ? 'bg-purple-600 text-white border-purple-400 ring-4 ring-purple-500/40 shadow-purple-600/30' : 'bg-slate-900/90 text-slate-200 border-slate-700 hover:border-blue-400'}`}
             >
-              <Navigation className="w-4 h-4 text-blue-400 group-hover:animate-spin" />
-              <span>🎯 In diesem Ausschnitt suchen</span>
+              <span className="text-sm">🔎</span>
+              <span>{isLoupeActive ? 'Lupe-Detektor AKTIV 🎯' : 'Lupe / Bereichs-Detektor'}</span>
             </button>
+
+            {isLoupeActive && (
+              <div className="bg-purple-950/90 backdrop-blur-md border border-purple-500/50 text-purple-200 px-3 py-1.5 rounded-xl text-[11px] font-bold shadow-2xl animate-in fade-in flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-purple-400 animate-ping" />
+                <span>Tippe eine beliebige Stelle auf der Karte an, um dort nach Stellen zu suchen!</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -437,6 +463,42 @@ export function JobMap({
               }}
             />
           </Source>
+        )}
+
+        {/* Animated Lupe Detector Circle (Lupe / Detektor Tool) */}
+        {loupeCircle && (
+          <Source id="loupe-detector" type="geojson" data={loupeCircle}>
+            <Layer
+              id="loupe-fill"
+              type="fill"
+              paint={{
+                'fill-color': '#a855f7',
+                'fill-opacity': 0.18
+              }}
+            />
+            <Layer
+              id="loupe-line"
+              type="line"
+              paint={{
+                'line-color': '#c084fc',
+                'line-width': 3,
+                'line-opacity': 0.9,
+                'line-dasharray': [2, 2]
+              }}
+            />
+          </Source>
+        )}
+
+        {loupePoint && (
+          <Marker longitude={loupePoint.lng} latitude={loupePoint.lat}>
+            <div className="relative flex flex-col items-center justify-center -translate-x-1/2 -translate-y-1/2 pointer-events-none z-50">
+              <div className="w-16 h-16 rounded-full border-2 border-purple-400 bg-purple-500/20 animate-ping absolute" />
+              <div className="px-3 py-1.5 rounded-full bg-purple-600 border-2 border-white text-white font-black text-xs shadow-2xl flex items-center gap-1.5 backdrop-blur-md">
+                <span className="text-sm">🔎</span>
+                <span>Job-Detektor</span>
+              </div>
+            </div>
+          </Marker>
         )}
 
         {/* Showcase Demo Routes & Animated Vehicles */}
