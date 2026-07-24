@@ -84,11 +84,21 @@ export function JobMap({
     ...initialViewState,
   });
 
+  // Sync internal viewState when initialViewState changes (e.g. from parent navigation)
+  useEffect(() => {
+    if (initialViewState) {
+      setViewState(prev => ({
+        ...prev,
+        ...initialViewState
+      }));
+    }
+  }, [initialViewState]);
+
   // Supercluster setup
   const supercluster = useMemo(() => {
     const sc = new Supercluster({
-      radius: 50,
-      maxZoom: 16
+      radius: 35, // Reduced from 50 to show more individual markers sooner
+      maxZoom: 15 // Clusters will break apart completely at zoom 15
     });
 
     const points = jobs.map(job => ({
@@ -122,27 +132,30 @@ export function JobMap({
   // Fly to user location whenever it changes (e.g. from search or GPS)
   useEffect(() => {
     if (userLocation) {
-      // Calculate optimal zoom based on radius
-      // 1km -> ~14, 5km -> ~12.5, 10km -> ~11.5, 25km -> ~10, 50km -> ~9
-      const calculatedZoom = Math.min(14, Math.max(8.5, 13.5 - Math.log2(radiusKm)));
+      // Significantly tighter zoom for "Google Maps" feel
+      // 1km -> ~16, 5km -> ~14.5, 10km -> ~13.5, 25km -> ~12, 100km -> ~10
+      const calculatedZoom = Math.min(16, Math.max(9, 15.5 - Math.log2(radiusKm / 1.5)));
       
       setViewState(prev => ({
         ...prev,
         longitude: userLocation.longitude,
         latitude: userLocation.latitude,
-        zoom: calculatedZoom
+        zoom: calculatedZoom,
+        pitch: 45, // Add a slight 3D perspective for "premium" feel
+        bearing: 0
       }));
     }
   }, [userLocation, radiusKm]);
 
-  // Fly to selected job CLOSE-UP (zoom 15.5 - street level)
+  // Fly to selected job CLOSE-UP (zoom 16.5 - street level detail)
   useEffect(() => {
     if (selectedJob) {
       setViewState(prev => ({
         ...prev,
         longitude: selectedJob.longitude,
         latitude: selectedJob.latitude,
-        zoom: 15.5
+        zoom: 16.5,
+        pitch: 60, // Deep 3D tilt when looking at a specific job
       }));
     }
   }, [selectedJob]);

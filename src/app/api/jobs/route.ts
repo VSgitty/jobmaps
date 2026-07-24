@@ -82,29 +82,42 @@ export async function GET(request: Request) {
   const jobType = searchParams.get('jobType') || '';
 
   try {
-    // 1. Reverse geocode user location to get city or postcode for Arbeitsagentur API
-    let locationTerm = '60311';
-    try {
-      const geoUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
-      const geoRes = await fetch(geoUrl, {
-        headers: { 'User-Agent': 'JobMaps/1.0 (https://jobmaps.local)' },
-        next: { revalidate: 3600 }
-      });
-      if (geoRes.ok) {
-        const geoData = await geoRes.json();
-        locationTerm =
-          geoData.address?.postcode ||
-          geoData.address?.city ||
-          geoData.address?.town ||
-          geoData.address?.village ||
-          '60311';
+    // 1. Get city or postcode for BA API - use coordinates if geocoding fails
+    let locationTerm = `${lat},${lon}`; // BA API supports "lat,lon" format for 'wo'
+    
+    // If radius is 200km (max), enable nationwide mode
+    const isNationwide = radius >= 195;
+    
+    if (isNationwide) {
+      locationTerm = 'Deutschland';
+    } else {
+      try {
+        const geoUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
+        const geoRes = await fetch(geoUrl, {
+          headers: { 'User-Agent': 'JobMaps/1.0 (https://jobmaps.local)' },
+          next: { revalidate: 3600 }
+        });
+        if (geoRes.ok) {
+          const geoData = await geoRes.json();
+          const pc = geoData.address?.postcode;
+          const city = geoData.address?.city || geoData.address?.town || geoData.address?.village;
+          if (pc || city) {
+            locationTerm = pc || city;
+          }
+        }
+      } catch (e) {
+        console.warn('Geocoding error, falling back to coordinate-based search:', e);
       }
-    } catch (e) {
-      console.warn('Geocoding error, falling back to default postcode:', e);
     }
 
-    // 2. Fetch real jobs from Arbeitsagentur Jobsuche API (size=100 for wider regional coverage)
-    let baUrl = `https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs?wo=${encodeURIComponent(locationTerm)}&umkreis=${Math.min(200, Math.max(1, Math.round(radius)))}&size=100`;
+    // 2. Fetch real jobs from Arbeitsagentur Jobsuche API (increased size for radius coverage)
+    // The BA API size limit is usually around 500-1000. Let's use 1000 for maximum coverage.
+    let baUrl = `https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs?wo=${encodeURIComponent(locationTerm)}&size=1000`;
+    
+    if (!isNationwide) {
+      baUrl += `&umkreis=${Math.min(200, Math.max(1, Math.round(radius)))}`;
+    }
+
     if (query) {
       baUrl += `&was=${encodeURIComponent(query)}`;
     }
@@ -122,15 +135,17 @@ export async function GET(request: Request) {
       const rawJobs: RawArbeitsagenturJob[] = baData.stellenangebote || [];
 
       if (rawJobs.length > 0) {
-        const jobs = rawJobs.map((item, idx) => {
+        let jobs = rawJobs.map((item, idx) => {
           let jobLat = item.arbeitsort?.koordinaten?.lat;
           let jobLon = item.arbeitsort?.koordinaten?.lon;
 
           // If coordinates are missing, place within radius of user location
           if (!jobLat || !jobLon) {
-            const radiusInDegrees = (radius / 3) / 111.12;
-            const angle = Math.random() * 2 * Math.PI;
-            const r = Math.random() * radiusInDegrees;
+            // Use a stable random based on refnr to keep markers from jumping
+            const seed = item.refnr ? parseInt(item.refnr.replace(/\D/g, '').slice(-5)) : idx;
+            const rInDeg = (radius / 2) / 111.12;
+            const angle = (seed % 360) * (Math.PI / 180);
+            const r = ((seed % 100) / 100) * rInDeg;
             jobLat = lat + r * Math.cos(angle);
             jobLon = lon + r * Math.sin(angle);
           } else {
@@ -142,6 +157,8 @@ export async function GET(request: Request) {
           }
 
           const exactDist = calculateDistanceKm(lat, lon, jobLat, jobLon);
+          // Only include if within user's requested radius + 10% buffer for border cases
+          if (exactDist > radius * 1.1) return null;
           const distKm = Math.round(exactDist * 100) / 100;
           const distText = exactDist < 1 ? `${Math.max(10, Math.round(exactDist * 1000))} m` : `${(Math.round(exactDist * 10) / 10).toFixed(1)} km`;
 
@@ -265,7 +282,7 @@ export async function GET(request: Request) {
               walking: Math.max(1, Math.round((exactDist / 5) * 60)) + ' Min'
             }
           };
-        });
+        }).filter(Boolean) as any[];
 
         // Filter by jobType if specified
         let filteredJobs = jobs;
@@ -274,9 +291,14 @@ export async function GET(request: Request) {
         }
 
         // Sort strictly by exact distance ascending (nearest jobs first)
-        filteredJobs.sort((a, b) => a.exact_distance - b.exact_distance);
+        filteredJobs.sort((a, b) => (a.exact_distance || 0) - (b.exact_distance || 0));
 
-        return NextResponse.json({ jobs: filteredJobs, source: 'Arbeitsagentur API', total: filteredJobs.length });
+        return NextResponse.json({ 
+          jobs: filteredJobs, 
+          source: 'Arbeitsagentur API', 
+          total: filteredJobs.length,
+          count: filteredJobs.length 
+        });
       }
     }
   } catch (err) {

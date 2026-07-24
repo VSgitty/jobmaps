@@ -340,7 +340,7 @@ function MapViewContent() {
                         type="range" 
                         className="w-full accent-primary h-1.5 bg-surface rounded-lg cursor-pointer" 
                         min="5" 
-                        max="100" 
+                        max="200" 
                         step="5"
                         value={distance} 
                         onChange={(e) => setDistance(Number(e.target.value))} 
