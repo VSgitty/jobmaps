@@ -488,6 +488,61 @@ export function JobMap({
           </>
         )}
 
+        {/* Active Route Line for Selected Job */}
+        {selectedJob && userLocation && !showDemoShowcase && (
+          <Source id="active-selected-route" type="geojson" data={{
+            type: 'Feature',
+            properties: {},
+            geometry: routeData || {
+              type: 'LineString',
+              coordinates: [
+                [userLocation.longitude, userLocation.latitude],
+                [selectedJob.longitude, selectedJob.latitude]
+              ]
+            }
+          }}>
+            <Layer
+              id="active-route-casing"
+              type="line"
+              paint={{
+                'line-color': '#000000',
+                'line-width': 8,
+                'line-opacity': 0.35
+              }}
+            />
+            <Layer
+              id="active-route-line"
+              type="line"
+              paint={{
+                'line-color': routeMode === 'driving' ? '#3b82f6' : routeMode === 'cycling' ? '#f59e0b' : routeMode === 'transit' ? '#a855f7' : '#10b981',
+                'line-width': 5,
+                'line-opacity': 0.95,
+                'line-dasharray': routeMode === 'walking' ? [2, 1] : [1, 0]
+              }}
+            />
+          </Source>
+        )}
+
+        {/* Moving Vehicle / Distance Indicator on Selected Route */}
+        {selectedJob && userLocation && !showDemoShowcase && (
+          <Marker 
+            longitude={(userLocation.longitude + selectedJob.longitude) / 2} 
+            latitude={(userLocation.latitude + selectedJob.latitude) / 2}
+          >
+            <div className="relative flex items-center justify-center -translate-x-1/2 -translate-y-1/2 pointer-events-none z-40">
+              <div className="px-3 py-1.5 rounded-full border-2 border-white text-white font-black text-xs shadow-2xl flex items-center gap-1.5 bg-blue-600 backdrop-blur-md animate-bounce">
+                {routeMode === 'driving' && <Car className="w-4 h-4 text-white" />}
+                {routeMode === 'transit' && <Bus className="w-4 h-4 text-white" />}
+                {routeMode === 'cycling' && <Bike className="w-4 h-4 text-white" />}
+                {routeMode === 'walking' && <Navigation className="w-4 h-4 text-white" />}
+                <span className="text-[11px] font-extrabold text-white">
+                  {selectedJob.distance_text || `${(selectedJob.exact_distance ?? selectedJob.distance ?? 1).toFixed(1)} km`}
+                </span>
+              </div>
+            </div>
+          </Marker>
+        )}
+
         {/* User Location Pin */}
         {userLocation && (
           <Marker longitude={userLocation.longitude} latitude={userLocation.latitude}>
@@ -508,14 +563,25 @@ export function JobMap({
           if (isCluster) {
             // Check if hoveredJobId is inside this cluster
             let isHoveredCluster = false;
-            if (hoveredJobId) {
-              try {
-                const leaves = supercluster.getLeaves(cluster.id as number, Infinity);
-                isHoveredCluster = leaves.some(leaf => leaf.properties?.jobId === hoveredJobId);
-              } catch {
-                isHoveredCluster = false;
+            let clusterLeaves: any[] = [];
+            try {
+              clusterLeaves = supercluster.getLeaves(cluster.id as number, Infinity);
+              if (hoveredJobId) {
+                isHoveredCluster = clusterLeaves.some(leaf => leaf.properties?.jobId === hoveredJobId);
               }
+            } catch {
+              clusterLeaves = [];
             }
+
+            // Check if all jobs in cluster belong to the same company
+            const firstJob = clusterLeaves[0]?.properties?.job;
+            const firstCompany = firstJob?.company_name || '';
+            const isSameCompany = firstCompany && clusterLeaves.every(leaf => 
+              (leaf.properties?.job?.company_name || '').toLowerCase().trim() === firstCompany.toLowerCase().trim()
+            );
+
+            const brand = isSameCompany ? getCompanyBrand(firstCompany) : null;
+            const firstCat = firstJob ? getJobCategory(firstJob.title, firstJob.company_name, firstJob.beruf) : null;
 
             return (
               <Marker
@@ -537,16 +603,33 @@ export function JobMap({
                 style={{ zIndex: isHoveredCluster ? 100 : 20 }}
               >
                 <div 
-                  className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-white shadow-2xl backdrop-blur-md cursor-pointer transition-all duration-300 group ${isHoveredCluster ? 'scale-125 z-50 ring-4 ring-blue-400 bg-blue-600' : 'bg-slate-900/90 hover:scale-110 hover:bg-blue-600'}`}
+                  className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-white shadow-2xl backdrop-blur-md cursor-pointer transition-all duration-300 group ${isHoveredCluster ? 'scale-125 z-50 ring-4 ring-blue-400 bg-blue-600' : 'bg-slate-900/95 hover:scale-110'}`}
+                  style={{
+                    backgroundColor: isHoveredCluster ? '#2563eb' : (brand ? brand.color : undefined)
+                  }}
+                  title={isSameCompany ? `${firstCompany} (${pointCount} Stellen)` : `${pointCount} Stellen an diesem Ort`}
                 >
                   {isHoveredCluster && (
                     <div className="absolute -inset-1 rounded-full bg-blue-500/50 animate-ping pointer-events-none" />
                   )}
-                  <div className="w-5 h-5 rounded-full bg-blue-500/30 flex items-center justify-center text-blue-300 group-hover:text-white">
-                    <Layers className="w-3 h-3" />
-                  </div>
+
+                  {/* Brand / Category Icon */}
+                  {brand ? (
+                    <span className={`font-black tracking-tighter drop-shadow-sm ${brand.font || 'text-[11px]'} ${brand.textCol} bg-black/20 px-1.5 py-0.5 rounded-md`}>
+                      {brand.text}
+                    </span>
+                  ) : firstCat ? (
+                    <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-white">
+                      <Layers className="w-3 h-3" />
+                    </div>
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-blue-500/30 flex items-center justify-center text-blue-300 group-hover:text-white">
+                      <Layers className="w-3 h-3" />
+                    </div>
+                  )}
+
                   <span className="text-xs font-black text-white whitespace-nowrap">
-                    {pointCount} Jobs
+                    {isSameCompany ? `${pointCount} Stellen` : `${pointCount} Jobs`}
                   </span>
                 </div>
               </Marker>
